@@ -1,0 +1,15 @@
+{
+  "protocol": "PIC/1.0",
+  "intent": "Search internal documentation for company holiday policy.",
+  "impact": "read",
+  "provenance": [
+    { "id": "user_chat_input", "trust": "untrusted" }
+  ],
+  "claims": [
+    { "text": "User is asking for public HR policy", "evidence": ["user_chat_input"] }
+  ],
+  "action": {
+    "tool": "rag_engine.search",
+    "args": { "query": "holiday policy 2026", "collection": "hr_public" }
+  }
+}
