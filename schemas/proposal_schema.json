@@ -1,13 +1,13 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
-  "title": "PIC Action Proposal",
+  "title": "PIC Action Proposal v1.0",
   "type": "object",
   "properties": {
     "protocol": { "type": "string", "const": "PIC/1.0" },
-    "intent": { "type": "string" },
+    "intent": { "type": "string", "description": "Semantic justification for the action." },
     "impact": {
       "type": "string",
-      "enum": ["read", "write", "external", "irreversible", "money"]
+      "enum": ["read", "write", "external", "irreversible", "money", "compute", "privacy"]
     },
     "provenance": {
       "type": "array",
