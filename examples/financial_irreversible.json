@@ -1,0 +1,22 @@
+{
+  "protocol": "PIC/1.0",
+  "intent": "Execute wire transfer for Q4 server costs.",
+  "impact": "money",
+  "provenance": [
+    { "id": "cfo_signed_invoice_hash", "trust": "trusted" },
+    { "id": "slack_approval_manager", "trust": "semi_trusted" }
+  ],
+  "claims": [
+    { "text": "Invoice hash matches authorized payment list", "evidence": ["cfo_signed_invoice_hash"] },
+    { "text": "Manager approved the expense via Slack", "evidence": ["slack_approval_manager"] }
+  ],
+  "action": {
+    "tool": "treasury.wire_transfer",
+    "args": {
+      "recipient": "AWS_Global_Payments",
+      "amount": 45000,
+      "currency": "USD",
+      "reference": "INV-9901"
+    }
+  }
+}
