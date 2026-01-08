@@ -1,0 +1,8 @@
+{
+  "protocol": "PIC/1.0",
+  "intent": "Trigger Large-Scale Batch Simulation",
+  "impact": "compute",
+  "provenance": [{"id": "ops_dashboard_trigger", "trust": "trusted"}],
+  "claims": [{"text": "Triggered by verified Ops Dashboard", "evidence": ["ops_dashboard_trigger"]}],
+  "action": {"tool": "aws.batch_run", "args": {"nodes": 100, "duration_hours": 24}}
+}
