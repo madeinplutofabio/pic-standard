@@ -1,0 +1,44 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "PIC Action Proposal v1.0",
+  "type": "object",
+  "properties": {
+    "protocol": { "type": "string", "const": "PIC/1.0" },
+    "intent": { "type": "string", "description": "Semantic justification for the action." },
+    "impact": {
+      "type": "string",
+      "enum": ["read", "write", "external", "irreversible", "money", "compute", "privacy"]
+    },
+    "provenance": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "string" },
+          "trust": { "type": "string", "enum": ["trusted", "semi_trusted", "untrusted"] }
+        },
+        "required": ["id", "trust"]
+      }
+    },
+    "claims": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "text": { "type": "string" },
+          "evidence": { "type": "array", "items": { "type": "string" } }
+        },
+        "required": ["text", "evidence"]
+      }
+    },
+    "action": {
+      "type": "object",
+      "properties": {
+        "tool": { "type": "string" },
+        "args": { "type": "object" }
+      },
+      "required": ["tool", "args"]
+    }
+  },
+  "required": ["protocol", "intent", "impact", "provenance", "claims", "action"]
+}
