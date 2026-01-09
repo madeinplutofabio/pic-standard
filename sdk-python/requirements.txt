@@ -1,2 +1,2 @@
 pydantic>=2.0.0
-pytest
+jsonschema>=4.0.0
