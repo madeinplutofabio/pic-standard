@@ -13,6 +13,8 @@ class ImpactClass(str, Enum):
     EXTERNAL = "external"
     IRREVERSIBLE = "irreversible"
     MONEY = "money"
+    COMPUTE = "compute"    
+    PRIVACY = "privacy"    
 
 class Provenance(BaseModel):
     id: str
