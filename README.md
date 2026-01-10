@@ -1,4 +1,4 @@
-# 🛡️ PIC Standard: Provenance & Intent Contracts
+# <p><img src="picico.png" height="60" align="absmiddle"> PIC Standard: Provenance & Intent Contracts</p>
 **The Open Protocol for Causal Governance in Agentic AI.**
 
 [![License](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](LICENSE)
