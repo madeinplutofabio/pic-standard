@@ -10,8 +10,16 @@
 
 ### Option A — Install from PyPI (recommended)
 
+LangGraph + MCP extras (recommended if you want both demos):
+
 ```bash
-pip install "pic-standard[langgraph]"
+pip install "pic-standard[langgraph,mcp]"
+```
+
+Or install base only:
+
+```bash
+pip install pic-standard
 ```
 
 Verify an example proposal:
@@ -73,11 +81,13 @@ If you installed from source and your shell still uses an old `pic-cli`:
 python -m pic_standard.cli verify examples/financial_hash_ok.json --verify-evidence
 ```
 
+> Tip: for MCP/LangGraph demos, use a fresh virtualenv to avoid dependency conflicts.
+
 ---
 
-## Evidence (v0.3.0): Resolvable SHA-256 artifacts
+## Evidence (v0.3.0+): Resolvable SHA-256 artifacts
 
-PIC v0.3.0 introduces **deterministic evidence verification**: evidence IDs can point to a real artifact and be validated via **SHA-256**.
+PIC introduces **deterministic evidence verification**: evidence IDs can point to a real artifact and be validated via **SHA-256**.
 
 ### What this gives you
 
@@ -144,11 +154,13 @@ Expected output:
 - invoice_123: sha256 mismatch (expected ..., got ...)
 ```
 
-### Evidence references: `file://` is relative to the proposal file
+### Evidence references: `file://` is sandboxed
 
-`file://artifacts/invoice_123.txt` is resolved relative to the JSON proposal directory:
+Evidence files are resolved relative to the proposal (base directory), and can be **sandboxed** to a root directory (recommended for servers).
 
-- `examples/financial_hash_ok.json` → `examples/artifacts/invoice_123.txt`
+Example (repo demos):
+
+- `examples/financial_hash_ok.json` → `file://artifacts/invoice_123.txt` resolves to `examples/artifacts/invoice_123.txt`
 - `examples/failing/financial_hash_bad.json` uses `file://../artifacts/invoice_123.txt`
 
 If you edit an artifact file, its SHA-256 changes. On Windows, recompute with:
@@ -178,7 +190,7 @@ This repo provides:
   - requires a PIC proposal in each tool call (`args["__pic"]`)
   - validates **schema + verifier + tool binding**
   - blocks high-impact calls when provenance is insufficient
-  - returns `ToolMessage` outputs (LangGraph-style messages state)
+  - returns `ToolMessage` outputs (LangGraph-style message state)
 
 #### Run the demo (no install required)
 
@@ -207,7 +219,7 @@ Your agent must attach a PIC proposal under a reserved argument key:
       "protocol": "PIC/1.0",
       "intent": "Send payment",
       "impact": "money",
-      "provenance": [{"id": "invoice_123", "trust": "trusted"}],
+      "provenance": [{"id": "invoice_123", "trust": "trusted", "source": "evidence"}],
       "claims": [{"text": "Pay $500", "evidence": ["invoice_123"]}],
       "action": {"tool": "payments_send", "args": {"amount": 500}}
     }
@@ -217,6 +229,78 @@ Your agent must attach a PIC proposal under a reserved argument key:
 ```
 
 > Tool binding is enforced: `proposal.action.tool` must match the actual tool name (`payments_send`).
+
+---
+
+### MCP (Model Context Protocol)
+
+PIC can be enforced at the **tool boundary** for MCP servers by wrapping tool functions with a guard.
+
+This repo provides:
+
+- `pic_standard.integrations.mcp_pic_guard.guard_mcp_tool(...)`:
+  - requires a PIC proposal for high-impact tools (policy-driven)
+  - validates **schema + verifier + tool binding**
+  - optionally verifies evidence (SHA-256) and upgrades provenance
+  - emits a structured audit log line per decision
+  - fail-closed on internal errors, with **debug-gated details** via `PIC_DEBUG=1`
+
+#### Run the demo (self-contained, no `pip install -e .` needed)
+
+Install MCP deps:
+
+```bash
+pip install -r sdk-python/requirements-mcp.txt
+```
+
+Run the client (spawns the server over stdio):
+
+```bash
+python -u examples/mcp_pic_client_demo.py
+```
+
+Expected behavior:
+
+- Untrusted money proposal is **blocked**
+- Trusted money proposal is **allowed**
+
+#### MCP parameter note
+
+FastMCP forbids underscore-prefixed parameter names. For this reason the demo tool uses:
+
+- MCP tool parameter: `pic` (not `__pic`)
+- Guard wrapper internal key: `__pic`
+
+The demo server maps `pic -> __pic` before calling the guarded function.
+
+---
+
+## Enterprise notes (MCP hardening)
+
+### Debug gating (no leakage by default)
+
+PIC will **not** leak internal exception details by default.
+
+- Default: `PIC_DEBUG` unset or `0` → errors are minimal (code + short message)
+- Debug: `PIC_DEBUG=1` → errors may include diagnostic `details`
+
+### Request tracing (`request_id`)
+
+The MCP guard supports correlation IDs so you can tie tool calls to logs:
+
+- Use `request_id` in tool args (common) or `__pic_request_id` (reserved safe key)
+- The decision log line includes `request_id` when present
+
+### Limits / DoS hardening
+
+The MCP guard enforces hard limits before running expensive work:
+
+- Proposal size limit (bytes)
+- Max counts for provenance/claims/evidence arrays
+- Evidence file sandbox + max file size (default 5MB)
+- Evaluation time budget (PIC enforcement budget), fail-closed if exceeded
+
+> Tool execution timeouts are an executor concern. For hard timeouts, run side-effect tools in an isolated worker (subprocess) or use async tools + `asyncio.wait_for`.
 
 ---
 

@@ -1,0 +1,85 @@
+from __future__ import annotations
+
+from pathlib import Path
+
+from pic_standard.policy import PICPolicy
+from pic_standard.integrations.mcp_pic_guard import guard_mcp_tool
+
+
+def _tool(amount: int) -> str:
+    return f"sent ${amount}"
+
+
+def _proposal(trust: str) -> dict:
+    return {
+        "protocol": "PIC/1.0",
+        "intent": "Send payment",
+        "impact": "money",
+        "provenance": [{"id": "invoice_123", "trust": trust, "source": "unit-test"}],
+        "claims": [{"text": "Pay $500", "evidence": ["invoice_123"]}],
+        "action": {"tool": "payments_send", "args": {"amount": 500}},
+    }
+
+
+def test_guard_blocks_missing_pic_for_money():
+    policy = PICPolicy(impact_by_tool={"payments_send": "money"})
+    wrapped = guard_mcp_tool("payments_send", _tool, policy=policy, verify_evidence=False)
+
+    out = wrapped(amount=500)
+    assert isinstance(out, dict)
+    assert out.get("isError") is True
+    assert out["error"]["code"].startswith("PIC_")
+
+
+def test_guard_blocks_untrusted_money():
+    policy = PICPolicy(impact_by_tool={"payments_send": "money"})
+    wrapped = guard_mcp_tool("payments_send", _tool, policy=policy, verify_evidence=False)
+
+    out = wrapped(amount=500, __pic=_proposal("untrusted"))
+    assert isinstance(out, dict)
+    assert out.get("isError") is True
+
+
+def test_guard_allows_trusted_money():
+    policy = PICPolicy(impact_by_tool={"payments_send": "money"})
+    wrapped = guard_mcp_tool("payments_send", _tool, policy=policy, verify_evidence=False)
+
+    out = wrapped(amount=500, __pic=_proposal("trusted"))
+
+    # ✅ New deterministic success envelope contract (v0.3.2 hardening)
+    assert out == {"isError": False, "result": "sent $500"}
+
+
+def test_mcp_guard_does_not_leak_internal_exception_details_by_default(monkeypatch):
+    monkeypatch.delenv("PIC_DEBUG", raising=False)
+
+    def boom(amount: int) -> str:
+        raise RuntimeError("secret path C:\\users\\bob\\prod.key")
+
+    policy = PICPolicy(impact_by_tool={"payments_send": "money"})
+    wrapped = guard_mcp_tool("payments_send", boom, policy=policy, verify_evidence=False)
+
+    out = wrapped(amount=1, __pic=_proposal("trusted"))
+    assert isinstance(out, dict)
+    assert out.get("isError") is True
+    err = out.get("error") or {}
+    # Must not leak raw exception text by default
+    details = err.get("details") or {}
+    assert "exception" not in details
+    assert "exception_type" not in details
+
+
+def test_mcp_guard_leaks_internal_exception_details_when_debug(monkeypatch):
+    monkeypatch.setenv("PIC_DEBUG", "1")
+
+    def boom(amount: int) -> str:
+        raise RuntimeError("leak-me")
+
+    policy = PICPolicy(impact_by_tool={"payments_send": "money"})
+    wrapped = guard_mcp_tool("payments_send", boom, policy=policy, verify_evidence=False)
+
+    out = wrapped(amount=1, __pic=_proposal("trusted"))
+    err = out.get("error") or {}
+    details = err.get("details") or {}
+    assert details.get("exception_type") == "RuntimeError"
+    assert "leak-me" in (details.get("exception") or "")

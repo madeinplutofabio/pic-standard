@@ -1,0 +1,17 @@
+{
+    "impact_by_tool": {
+        "payments_send": "money",
+        "customer_export": "privacy",
+        "aws_batch_run": "compute"
+    },
+    "require_pic_for_impacts": [
+        "money",
+        "privacy",
+        "irreversible"
+    ],
+    "require_evidence_for_impacts": [
+        "money",
+        "privacy",
+        "irreversible"
+    ]
+}

@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 from pathlib import Path
 from importlib import resources
 
@@ -9,6 +10,7 @@ from jsonschema import validate as js_validate, ValidationError
 
 from .verifier import ActionProposal
 from .evidence import EvidenceSystem, apply_verified_ids_to_provenance
+from .config import load_policy, dump_policy
 
 
 def load_json(path: Path) -> dict:
@@ -110,6 +112,53 @@ def cmd_verify(proposal_path: Path, *, verify_evidence: bool = False) -> int:
         return 3
 
 
+def _find_policy_source(repo_root: Path) -> str:
+    """
+    Best-effort: explain where policy came from.
+    This mirrors load_policy() priority:
+      explicit_path (not used by CLI)
+      PIC_POLICY_PATH env var
+      repo_root/pic_policy.json or repo_root/pic_policy.local.json
+      default policy
+    """
+    env_path = os.getenv("PIC_POLICY_PATH")
+    if env_path:
+        return f"PIC_POLICY_PATH={env_path}"
+
+    for name in ("pic_policy.json", "pic_policy.local.json"):
+        candidate = repo_root / name
+        if candidate.exists():
+            return str(candidate)
+
+    return "default (no policy file found)"
+
+
+def cmd_policy(*, repo_root: Path, write_example: bool = False) -> int:
+    """
+    Show the effective policy (and where it was loaded from).
+    """
+    if write_example:
+        example = {
+            "impact_by_tool": {
+                "payments_send": "money",
+                "customer_export": "privacy",
+                "aws_batch_run": "compute",
+            },
+            "require_pic_for_impacts": ["money", "privacy", "irreversible"],
+            "require_evidence_for_impacts": ["money", "privacy", "irreversible"],
+        }
+        print(json.dumps(example, indent=2, ensure_ascii=False))
+        return 0
+
+    policy = load_policy(repo_root=repo_root)
+    source = _find_policy_source(repo_root)
+
+    print("✅ Policy loaded")
+    print(f"Source: {source}")
+    print(json.dumps(dump_policy(policy), indent=2, ensure_ascii=False))
+    return 0
+
+
 def build_parser() -> argparse.ArgumentParser:
     p = argparse.ArgumentParser(prog="pic-cli", description="PIC Standard CLI utilities")
     sub = p.add_subparsers(dest="command", required=True)
@@ -128,6 +177,19 @@ def build_parser() -> argparse.ArgumentParser:
     s3 = sub.add_parser("evidence-verify", help="Verify evidence only (v0.3: sha256)")
     s3.add_argument("proposal", type=Path)
 
+    s4 = sub.add_parser("policy", help="Show the effective policy loaded from pic_policy.json / PIC_POLICY_PATH")
+    s4.add_argument(
+        "--repo-root",
+        type=Path,
+        default=Path(".").resolve(),
+        help="Repo root to search for pic_policy.json (default: current working directory).",
+    )
+    s4.add_argument(
+        "--write-example",
+        action="store_true",
+        help="Print an example policy JSON you can save as pic_policy.json.",
+    )
+
     return p
 
 
@@ -140,10 +202,11 @@ def main(argv: list[str] | None = None) -> int:
         return cmd_evidence_verify(args.proposal)
     if args.command == "verify":
         return cmd_verify(args.proposal, verify_evidence=getattr(args, "verify_evidence", False))
+    if args.command == "policy":
+        return cmd_policy(repo_root=getattr(args, "repo_root"), write_example=getattr(args, "write_example", False))
 
     raise SystemExit("Unknown command")
 
 
 if __name__ == "__main__":
     raise SystemExit(main())
-
