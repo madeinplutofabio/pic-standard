@@ -1,6 +1,8 @@
 # <p><img src="https://raw.githubusercontent.com/madeinplutofabio/pic-standard/main/picico.png" height="60" align="absmiddle"> PIC Standard: Provenance & Intent Contracts</p>
 **The Open Protocol for Causal Governance in Agentic AI.**
 
+PIC closes the **causal gap**: when untrusted inputs (prompt injection, user text, web pages) influence **high‑impact side effects** (payments, exports, infra changes), PIC forces a **machine‑verifiable contract** between *what the agent claims* and *what evidence actually backs it*.
+
 [![License](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](LICENSE)
 [![Status](https://img.shields.io/badge/Status-Draft_v1.0-orange.svg)]()
 
@@ -75,15 +77,27 @@ python -m pic_standard.cli verify examples/financial_hash_ok.json --verify-evide
 
 ---
 
-## Evidence (v0.3.0): Resolvable SHA-256 artifacts
+## The PIC contract (what an agent proposes *before* a tool call)
 
-PIC v0.3.0 introduces **deterministic evidence verification**: evidence IDs can point to a real artifact and be validated via **SHA-256**.
+PIC uses an **Action Proposal JSON** (schema: `PIC/1.0`). The agent emits it right before executing a tool:
+
+- **intent**: what it’s trying to do
+- **impact**: risk class (`money`, `privacy`, `compute`, `irreversible`, ...)
+- **provenance**: which inputs influenced the decision (and their trust)
+- **claims + evidence**: what the agent is asserting and which evidence IDs support it
+- **action**: the actual tool call being attempted (**tool binding**)
+
+---
+
+## Evidence (v0.3): Resolvable SHA‑256 artifacts
+
+PIC v0.3 adds **deterministic evidence verification**: evidence IDs can point to a real artifact and be validated via **SHA‑256**.
 
 ### What this gives you
 
-- `evidence_id` is no longer just a label — it can be **resolved** to a file (`file://...`) and **verified**.
-- Verification is **fail-closed**: if evidence can’t be resolved or verified, high-impact actions are blocked.
-- “Trusted” becomes an **output** of verification (in-memory): verified evidence IDs upgrade `provenance[].trust` to `trusted` before the verifier runs.
+- `evidence[].id` is no longer just a label — it can be **resolved** to a file (`file://...`) and **verified**.
+- Verification is **fail‑closed**: if evidence can’t be resolved or verified, high‑impact actions are blocked.
+- “Trusted” becomes an **output** of verification (in‑memory): verified evidence IDs upgrade `provenance[].trust` to `trusted` before the verifier runs.
 
 ### Run evidence verification
 
@@ -130,7 +144,7 @@ Expected output:
 ✅ Verifier passed
 ```
 
-And this fails closed:
+Fail‑closed:
 
 ```bash
 pic-cli verify examples/failing/financial_hash_bad.json --verify-evidence
@@ -144,14 +158,13 @@ Expected output:
 - invoice_123: sha256 mismatch (expected ..., got ...)
 ```
 
-### Evidence references: `file://` is relative to the proposal file
+### Evidence references: `file://` is resolved relative to the proposal file
 
 `file://artifacts/invoice_123.txt` is resolved relative to the JSON proposal directory:
 
 - `examples/financial_hash_ok.json` → `examples/artifacts/invoice_123.txt`
-- `examples/failing/financial_hash_bad.json` uses `file://../artifacts/invoice_123.txt`
 
-If you edit an artifact file, its SHA-256 changes. On Windows, recompute with:
+If you edit an artifact file, its SHA‑256 changes. On Windows, recompute with:
 
 ```powershell
 Get-FileHash .\examples\artifacts\invoice_123.txt -Algorithm SHA256
@@ -159,28 +172,21 @@ Get-FileHash .\examples\artifacts\invoice_123.txt -Algorithm SHA256
 
 ---
 
-## Stability & Versioning
-
-- `PIC/1.0` refers to the **proposal schema protocol version**.
-- The Python package follows **Semantic Versioning**. Breaking changes will bump the major version.
-
----
-
 ## Integrations
 
 ### LangGraph (anchor integration)
 
-PIC can be enforced at the **tool boundary** using a LangGraph-compatible tool execution node.
+PIC can be enforced at the **tool boundary** using a LangGraph‑compatible tool execution node.
 
 This repo provides:
 
-- `pic_standard.integrations.PICToolNode`: a drop-in tool node that
+- `pic_standard.integrations.PICToolNode`: a drop‑in ToolNode wrapper that:
   - requires a PIC proposal in each tool call (`args["__pic"]`)
   - validates **schema + verifier + tool binding**
-  - blocks high-impact calls when provenance is insufficient
-  - returns `ToolMessage` outputs (LangGraph-style messages state)
+  - blocks high‑impact calls when provenance is insufficient
+  - returns `ToolMessage` outputs (LangGraph state)
 
-#### Run the demo (no install required)
+Run the demo:
 
 ```bash
 pip install -r sdk-python/requirements-langgraph.txt
@@ -194,9 +200,7 @@ Expected output:
 ✅ allowed as expected (trusted money)
 ```
 
-#### How it works (tool-call contract)
-
-Your agent must attach a PIC proposal under a reserved argument key:
+Tool‑call contract (PIC proposal is attached under `__pic`):
 
 ```json
 {
@@ -207,7 +211,7 @@ Your agent must attach a PIC proposal under a reserved argument key:
       "protocol": "PIC/1.0",
       "intent": "Send payment",
       "impact": "money",
-      "provenance": [{"id": "invoice_123", "trust": "trusted"}],
+      "provenance": [{"id": "invoice_123", "trust": "trusted", "source": "evidence"}],
       "claims": [{"text": "Pay $500", "evidence": ["invoice_123"]}],
       "action": {"tool": "payments_send", "args": {"amount": 500}}
     }
@@ -216,33 +220,97 @@ Your agent must attach a PIC proposal under a reserved argument key:
 }
 ```
 
-> Tool binding is enforced: `proposal.action.tool` must match the actual tool name (`payments_send`).
+> Tool binding is enforced: `proposal.action.tool` must match the actual tool name.
 
 ---
 
-## 1. The Core Thesis: Closing the "Causal Gap"
-Traditional AI safety focuses on **Dialogue Guardrails**. However, enterprise agents operate via **Side Effects** (API calls, financial transfers).
+### MCP (Model Context Protocol) — enterprise‑ready tool guarding
 
-The **Causal Gap** occurs when an agent performs a high-impact action based on instructions from an untrusted source (e.g., Indirect Prompt Injection). PIC bridges this gap by enforcing a machine-verifiable contract between **Input Provenance** and **Action Impact**.
+PIC can also be enforced at the **MCP tool boundary** with a small wrapper:
 
-### 🔍 Comparative Landscape
-| Feature | CaMeL | RTBAS | **PIC Standard** |
-| :--- | :--- | :--- | :--- |
-| **Primary Focus** | Multi-Agent Dialogue | Physical/Robotic Safety | **Business Logic & Side Effects** |
-| **Enforcement** | Cognitive/Reasoning | Sensor-based | **Causal Contract (JSON Schema)** |
-| **Target Domain** | Research/Chat | Robotics | **SaaS / FinTech / Enterprise** |
+- `pic_standard.integrations.mcp_pic_guard.guard_mcp_tool(...)`
+
+This integration is designed for production defaults:
+
+- **Fail‑closed** (blocks on verifier/evidence failure)
+- **No exception leakage by default** (`PIC_DEBUG` gating)
+- **Request correlation** (`request_id` / `__pic_request_id` shows in audit logs)
+- **Hard limits** (proposal size/items; evidence file sandbox + max bytes; eval time budget)
+
+#### Run the MCP demo (stdio client ↔ stdio server)
+
+Install demo deps:
+
+```bash
+pip install -r sdk-python/requirements-mcp.txt
+```
+
+Run the client (it spawns the server via stdio):
+
+```bash
+python -u examples/mcp_pic_client_demo.py
+```
+
+Expected output (high level):
+
+```text
+1) untrusted money -> should be BLOCKED
+✅ blocked as expected
+
+2) trusted money -> should be ALLOWED
+TEXT: sent $500
+```
+
+#### Enterprise notes (hardening)
+
+**1) Debug gating (no leakage by default)**
+- Default (`PIC_DEBUG` unset/0): error payloads include only `code` + minimal `message`.
+- Debug (`PIC_DEBUG=1`): error payloads may include diagnostic `details` (e.g., verifier error string, exception type/message).
+
+Windows PowerShell:
+
+```powershell
+$env:PIC_DEBUG="0"
+python -u examples/mcp_pic_client_demo.py
+
+$env:PIC_DEBUG="1"
+python -u examples/mcp_pic_client_demo.py
+```
+
+**2) Request tracing**
+If your tool call includes:
+- `__pic_request_id="abc123"` (recommended reserved key), or
+- `request_id="abc123"`
+
+…the MCP guard logs a single structured line with that correlation ID.
+
+**3) Limits / DoS hardening**
+- Proposal limits: max bytes + max counts (provenance/claims/evidence)
+- Evidence hardening (v0.3.2):
+  - sandboxed to `evidence_root_dir` (prevents path escape)
+  - `max_file_bytes` (default 5MB)
+- PIC evaluation time budget:
+  - `PICEvaluateLimits(max_eval_ms=...)` blocks if enforcement work exceeds the budget
+
+> Tool execution timeouts are an **executor concern** (sync Python can’t reliably kill a running function). PIC protects the *policy enforcement path*.
 
 ---
 
-## 2. Technical Glossary
-* **Action Proposal:** A JSON contract generated by the agent *before* tool execution.
-* **Causal Taint:** When an untrusted input influences a high-impact output without trusted evidence.
-* **Impact Class:** A taxonomy of risk (e.g., `money`, `privacy`, `compute`).
-* **Provenance Triplet:** The classification of data sources into `Trusted`, `Semi-Trusted`, or `Untrusted`.
+## Stability & Versioning
+
+- `PIC/1.0` refers to the **proposal schema protocol version**.
+- The Python package follows **Semantic Versioning**. Breaking changes will bump the major version.
 
 ---
 
-## 3. How It Works (The Flow)
+## Why PIC (vs “guardrails”) in one line
+
+Guardrails constrain **what the model says**. PIC constrains **what the agent is allowed to do** (side effects) based on **verifiable provenance + evidence**.
+
+---
+
+## How it works (flow)
+
 ```mermaid
 graph TD
     A[Untrusted Input] --> B{AI Agent / Planner}
@@ -256,20 +324,22 @@ graph TD
 
 ---
 
-## 4. v1.0 Roadmap
-- [✅] Phase 1 (MVP): Standardize money and privacy Impact Classes.
-- [✅] Phase 2 (SDK): Reference Python/Pydantic implementation.
-- [ ] Phase 3 (Integrations): Native middleware for LangGraph and CrewAI.
-- [ ] Phase 4 (Advanced): Cryptographic signing for trusted provenance (v0.4+).
+## Roadmap (protocol)
+
+- [✅] Phase 1: Standardize money and privacy Impact Classes.
+- [✅] Phase 2: Reference Python verifier + CLI.
+- [✅] Phase 3: Anchor integrations (LangGraph + MCP).
+- [ ] Phase 4: Cryptographic signing for trusted provenance (v0.4+).
 
 ---
 
 ## 🤝 Community & Governance
-The PIC Standard is an open-source movement. We are actively seeking:
 
-- Security Researchers to stress-test causal logic.
-- Framework Authors to build native PIC integrations.
-- Enterprise Architects to define domain-specific Impact Classes.
+We’re actively seeking:
+
+- Security researchers to stress‑test causal logic
+- Framework authors to build native integrations
+- Enterprise architects to define domain Impact Classes
 
 Maintained by [![Linkedin](https://i.sstatic.net/gVE0j.png) @fmsalvadori](https://www.linkedin.com/in/fmsalvadori/)
 &nbsp;
