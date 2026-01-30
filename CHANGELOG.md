@@ -5,6 +5,22 @@ All notable changes to this project will be documented in this file.
 This project follows Semantic Versioning:
 https://semver.org/
 
+## [0.4.0] - 2026-01-30
+### Added
+- **Signature evidence (Ed25519)**: `evidence[].type="sig"` verifies an Ed25519 signature over `payload` bytes using a trusted key resolved from the keyring (`key_id`).
+- Keyring support for trusted public keys (base64/hex/PEM) with env-based selection via `PIC_KEYS_PATH`.
+- New examples:
+  - `examples/financial_sig_ok.json` (passes)
+  - `examples/failing/financial_sig_bad.json` (fails)
+  - `examples/_gen_sig_example.py` (regenerates demo key + examples deterministically)
+- New tests for signature evidence pass/fail using `pic_keys.example.json`.
+
+### Security / Hardening
+- Signature verification is offline and deterministic; no artifact shipping required.
+- Payload size is capped in EvidenceSystem (`max_payload_bytes`) to reduce DoS risk.
+
+---
+
 ## [0.3.2] - 2026-01-19
 ### Added
 - **MCP integration (production-grade guard)**: `pic_standard.integrations.mcp_pic_guard.guard_mcp_tool(...)` to enforce PIC at the MCP tool boundary.

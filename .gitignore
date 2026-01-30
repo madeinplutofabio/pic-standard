@@ -216,3 +216,6 @@ examples/_mcp_server_stderr.log
 
 # MCP demo venv
 .venv-mcp/
+
+# PIC keyring (local trusted keys)
+pic_keys.json

@@ -12,11 +12,23 @@ PIC closes the **causal gap**: when untrusted inputs (prompt injection, user tex
 
 ### Option A — Install from PyPI (recommended)
 
+Pick the extras you need:
+
 ```bash
+# core (schema + verifier + CLI)
+pip install pic-standard
+
+# LangGraph integration
 pip install "pic-standard[langgraph]"
+
+# MCP integration
+pip install "pic-standard[mcp]"
+
+# Signature evidence (Ed25519)
+pip install "pic-standard[crypto]"
 ```
 
-Verify an example proposal:
+Verify an example proposal (schema + verifier):
 
 ```bash
 pic-cli verify examples/financial_irreversible.json
@@ -62,14 +74,7 @@ Run the CLI:
 pic-cli verify examples/financial_irreversible.json
 ```
 
-Expected output:
-
-```text
-✅ Schema valid
-✅ Verifier passed
-```
-
-If you installed from source and your shell still uses an old `pic-cli`:
+If your shell still uses an old `pic-cli` after editable installs:
 
 ```bash
 python -m pic_standard.cli verify examples/financial_hash_ok.json --verify-evidence
@@ -79,27 +84,27 @@ python -m pic_standard.cli verify examples/financial_hash_ok.json --verify-evide
 
 ## The PIC contract (what an agent proposes *before* a tool call)
 
-PIC uses an **Action Proposal JSON** (schema: `PIC/1.0`). The agent emits it right before executing a tool:
+PIC uses an **Action Proposal JSON** (protocol: `PIC/1.0`). The agent emits it right before executing a tool:
 
 - **intent**: what it’s trying to do
-- **impact**: risk class (`money`, `privacy`, `compute`, `irreversible`, ...)
+- **impact**: risk class (`money`, `privacy`, `compute`, `irreversible`, …)
 - **provenance**: which inputs influenced the decision (and their trust)
-- **claims + evidence**: what the agent is asserting and which evidence IDs support it
+- **claims + evidence**: what the agent asserts and which evidence IDs support it
 - **action**: the actual tool call being attempted (**tool binding**)
 
 ---
 
-## Evidence (v0.3): Resolvable SHA‑256 artifacts
+## Evidence
+
+### Evidence v0.3 — Resolvable SHA‑256 artifacts (`type="hash"`)
 
 PIC v0.3 adds **deterministic evidence verification**: evidence IDs can point to a real artifact and be validated via **SHA‑256**.
 
-### What this gives you
+What this gives you:
 
 - `evidence[].id` is no longer just a label — it can be **resolved** to a file (`file://...`) and **verified**.
 - Verification is **fail‑closed**: if evidence can’t be resolved or verified, high‑impact actions are blocked.
-- “Trusted” becomes an **output** of verification (in‑memory): verified evidence IDs upgrade `provenance[].trust` to `trusted` before the verifier runs.
-
-### Run evidence verification
+- “Trusted” becomes an **output** of verification (in‑memory): verified evidence IDs upgrade `provenance[].trust` → `trusted` before the verifier runs.
 
 Verify evidence only:
 
@@ -115,7 +120,7 @@ Expected output:
 ✅ Evidence verification passed
 ```
 
-See it fail (expected):
+Fail (expected):
 
 ```bash
 pic-cli evidence-verify examples/failing/financial_hash_bad.json
@@ -129,19 +134,10 @@ Expected output:
 ❌ Evidence verification failed
 ```
 
-### Gate the verifier on evidence
-
-This runs: **schema → evidence verify → upgrade provenance trust → PIC verifier**.
+Gate the verifier on evidence (schema → evidence verify → provenance upgrade → verifier):
 
 ```bash
 pic-cli verify examples/financial_hash_ok.json --verify-evidence
-```
-
-Expected output:
-
-```text
-✅ Schema valid
-✅ Verifier passed
 ```
 
 Fail‑closed:
@@ -150,25 +146,98 @@ Fail‑closed:
 pic-cli verify examples/failing/financial_hash_bad.json --verify-evidence
 ```
 
-Expected output:
-
-```text
-✅ Schema valid
-❌ Evidence verification failed
-- invoice_123: sha256 mismatch (expected ..., got ...)
-```
-
-### Evidence references: `file://` is resolved relative to the proposal file
+**Hash evidence references (`file://`)**
 
 `file://artifacts/invoice_123.txt` is resolved relative to the JSON proposal directory:
 
 - `examples/financial_hash_ok.json` → `examples/artifacts/invoice_123.txt`
 
-If you edit an artifact file, its SHA‑256 changes. On Windows, recompute with:
+Evidence is sandboxed: the resolved path must stay under the configured `evidence_root_dir` (default: the proposal directory / server-configured root).
+
+On Windows, recompute SHA‑256 with:
 
 ```powershell
 Get-FileHash .\examples\artifacts\invoice_123.txt -Algorithm SHA256
 ```
+
+---
+
+### Evidence v0.4 — Signature evidence (Ed25519) (`type="sig"`)
+
+PIC v0.4 adds **signature verification** so approvals can be endorsed by trusted signers (CFO, internal service, billing system) **without shipping the raw artifact**.
+
+**How it works**
+- The proposal includes an evidence entry with:
+  - `payload` (the exact bytes-to-verify, as UTF‑8 string)
+  - `signature` (base64 Ed25519 signature)
+  - `key_id` (public key identifier)
+- The verifier resolves `key_id` against a **trusted keyring** (not inside the proposal).
+
+> Canonicalization is the caller’s responsibility. If you change whitespace, ordering, or separators in `payload`, signatures will fail.
+
+**Install**
+```bash
+pip install "pic-standard[crypto]"
+```
+
+**Configure trusted keys**
+
+PIC loads keys from:
+- `PIC_KEYS_PATH` (if set), otherwise
+- `./pic_keys.json` (if present), otherwise
+- an empty keyring (no trusted signers configured)
+
+Example keyring file format:
+
+```json
+{
+  "trusted_keys": {
+    "demo_signer_v1": "<base64-or-hex-or-PEM Ed25519 public key>"
+  }
+}
+```
+
+PowerShell example:
+
+```powershell
+$env:PIC_KEYS_PATH=".\pic_keys.json"
+pic-cli keys
+```
+
+**Run signature evidence verification**
+
+Signed example:
+
+```bash
+pic-cli evidence-verify examples/financial_sig_ok.json
+```
+
+Expected output:
+
+```text
+✅ Schema valid
+✅ Evidence approval_123: signature verified (key_id='demo_signer_v1')
+✅ Evidence verification passed
+```
+
+Tampered example (expected fail):
+
+```bash
+pic-cli evidence-verify examples/failing/financial_sig_bad.json
+```
+
+Expected output:
+
+```text
+✅ Schema valid
+❌ Evidence approval_123: signature invalid (key_id='demo_signer_v1')
+❌ Evidence verification failed
+```
+
+**Key rotation guidance (practical)**
+- Add a new key ID (e.g. `cfo_key_v2`) to the keyring.
+- Start emitting proposals with `key_id="cfo_key_v2"`.
+- Remove old key IDs when you want to revoke/retire them.
 
 ---
 
@@ -224,7 +293,7 @@ Tool‑call contract (PIC proposal is attached under `__pic`):
 
 ---
 
-### MCP (Model Context Protocol) — enterprise‑ready tool guarding
+### MCP (Model Context Protocol) — production defaults for tool guarding
 
 PIC can also be enforced at the **MCP tool boundary** with a small wrapper:
 
@@ -234,8 +303,8 @@ This integration is designed for production defaults:
 
 - **Fail‑closed** (blocks on verifier/evidence failure)
 - **No exception leakage by default** (`PIC_DEBUG` gating)
-- **Request correlation** (`request_id` / `__pic_request_id` shows in audit logs)
-- **Hard limits** (proposal size/items; evidence file sandbox + max bytes; eval time budget)
+- **Request correlation** (`request_id` / `__pic_request_id` appears in audit logs)
+- **Hard limits** (proposal size/items; evidence file sandbox + max bytes; evaluation time budget)
 
 #### Run the MCP demo (stdio client ↔ stdio server)
 
@@ -265,7 +334,7 @@ TEXT: sent $500
 
 **1) Debug gating (no leakage by default)**
 - Default (`PIC_DEBUG` unset/0): error payloads include only `code` + minimal `message`.
-- Debug (`PIC_DEBUG=1`): error payloads may include diagnostic `details` (e.g., verifier error string, exception type/message).
+- Debug (`PIC_DEBUG=1`): error payloads may include diagnostic `details`.
 
 Windows PowerShell:
 
@@ -282,11 +351,11 @@ If your tool call includes:
 - `__pic_request_id="abc123"` (recommended reserved key), or
 - `request_id="abc123"`
 
-…the MCP guard logs a single structured line with that correlation ID.
+…the guard logs a single structured line with that correlation ID.
 
 **3) Limits / DoS hardening**
 - Proposal limits: max bytes + max counts (provenance/claims/evidence)
-- Evidence hardening (v0.3.2):
+- Evidence hardening:
   - sandboxed to `evidence_root_dir` (prevents path escape)
   - `max_file_bytes` (default 5MB)
 - PIC evaluation time budget:
@@ -298,7 +367,7 @@ If your tool call includes:
 
 ## Stability & Versioning
 
-- `PIC/1.0` refers to the **proposal schema protocol version**.
+- `PIC/1.0` refers to the **proposal protocol** (schema).
 - The Python package follows **Semantic Versioning**. Breaking changes will bump the major version.
 
 ---
@@ -329,7 +398,7 @@ graph TD
 - [✅] Phase 1: Standardize money and privacy Impact Classes.
 - [✅] Phase 2: Reference Python verifier + CLI.
 - [✅] Phase 3: Anchor integrations (LangGraph + MCP).
-- [ ] Phase 4: Cryptographic signing for trusted provenance (v0.4+).
+- [✅] Phase 4: Evidence verification (hash v0.3 + signature v0.4).
 
 ---
 

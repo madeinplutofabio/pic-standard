@@ -1,0 +1,39 @@
+{
+    "protocol": "PIC/1.0",
+    "intent": "Send payment",
+    "impact": "money",
+    "provenance": [
+        {
+            "id": "approval_123",
+            "trust": "untrusted",
+            "source": "evidence"
+        }
+    ],
+    "claims": [
+        {
+            "text": "Pay $500",
+            "evidence": [
+                "approval_123"
+            ]
+        }
+    ],
+    "action": {
+        "tool": "payments_send",
+        "args": {
+            "amount": 500
+        }
+    },
+    "evidence": [
+        {
+            "id": "approval_123",
+            "type": "sig",
+            "ref": "inline:approval_payload",
+            "payload": "amount=500;currency=USD;invoice=123",
+            "alg": "ed25519",
+            "signature": "ymvp10FF/WONP4Z70juSwGpYmYcTe0jQ1MsDbE5v3YIyJv3CCVymv42tBNm8lEXvk4IkHHwLMgrFU2FECvaoBw==",
+            "key_id": "demo_signer_v1",
+            "signer": "demo_signer_v1",
+            "attestor": "demo"
+        }
+    ]
+}

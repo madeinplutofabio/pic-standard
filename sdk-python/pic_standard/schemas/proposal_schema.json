@@ -3,22 +3,50 @@
   "title": "PIC Action Proposal v1.0",
   "type": "object",
   "properties": {
-    "protocol": { "type": "string", "const": "PIC/1.0" },
-    "intent": { "type": "string" },
+    "protocol": {
+      "type": "string",
+      "const": "PIC/1.0"
+    },
+    "intent": {
+      "type": "string"
+    },
     "impact": {
       "type": "string",
-      "enum": ["read", "write", "external", "irreversible", "money", "compute", "privacy"]
+      "enum": [
+        "read",
+        "write",
+        "external",
+        "irreversible",
+        "money",
+        "compute",
+        "privacy"
+      ]
     },
     "provenance": {
       "type": "array",
       "items": {
         "type": "object",
         "properties": {
-          "id": { "type": "string" },
-          "trust": { "type": "string", "enum": ["trusted", "semi_trusted", "untrusted"] },
-          "source": { "type": "string", "description": "Optional human/debug reference to where this provenance came from." }
+          "id": {
+            "type": "string"
+          },
+          "trust": {
+            "type": "string",
+            "enum": [
+              "trusted",
+              "semi_trusted",
+              "untrusted"
+            ]
+          },
+          "source": {
+            "type": "string",
+            "description": "Optional human/debug reference to where this provenance came from."
+          }
         },
-        "required": ["id", "trust"],
+        "required": [
+          "id",
+          "trust"
+        ],
         "additionalProperties": false
       }
     },
@@ -27,39 +55,135 @@
       "items": {
         "type": "object",
         "properties": {
-          "text": { "type": "string" },
-          "evidence": { "type": "array", "items": { "type": "string" } }
+          "text": {
+            "type": "string"
+          },
+          "evidence": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
         },
-        "required": ["text", "evidence"],
+        "required": [
+          "text",
+          "evidence"
+        ],
         "additionalProperties": false
       }
     },
     "action": {
       "type": "object",
       "properties": {
-        "tool": { "type": "string" },
-        "args": { "type": "object" }
+        "tool": {
+          "type": "string"
+        },
+        "args": {
+          "type": "object"
+        }
       },
-      "required": ["tool", "args"],
+      "required": [
+        "tool",
+        "args"
+      ],
       "additionalProperties": false
     },
     "evidence": {
       "type": "array",
-      "description": "Optional evidence objects that can be resolved and verified deterministically (v0.3: sha256).",
+      "description": "Optional evidence objects that can be resolved and verified deterministically (v0.3: sha256, v0.4: ed25519 signatures).",
       "items": {
-        "type": "object",
-        "properties": {
-          "id": { "type": "string" },
-          "type": { "type": "string", "enum": ["hash"] },
-          "ref": { "type": "string" },
-          "sha256": { "type": "string", "pattern": "^[a-fA-F0-9]{64}$" },
-          "attestor": { "type": "string" }
-        },
-        "required": ["id", "type", "ref", "sha256"],
-        "additionalProperties": false
+        "oneOf": [
+          {
+            "title": "Hash Evidence (v0.3)",
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string"
+              },
+              "type": {
+                "type": "string",
+                "const": "hash"
+              },
+              "ref": {
+                "type": "string"
+              },
+              "sha256": {
+                "type": "string",
+                "pattern": "^[a-fA-F0-9]{64}$"
+              },
+              "attestor": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "id",
+              "type",
+              "ref",
+              "sha256"
+            ],
+            "additionalProperties": false
+          },
+          {
+            "title": "Signature Evidence (v0.4)",
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string"
+              },
+              "type": {
+                "type": "string",
+                "const": "sig"
+              },
+              "ref": {
+                "type": "string",
+                "description": "Evidence reference (v0.4 supports inline:... plus future schemes)."
+              },
+              "payload": {
+                "type": "string",
+                "description": "Exact bytes-to-verify, encoded as UTF-8 string (canonicalization is the caller's responsibility)."
+              },
+              "signer": {
+                "type": "string",
+                "description": "Human/service identity of signer (informational)."
+              },
+              "alg": {
+                "type": "string",
+                "const": "ed25519"
+              },
+              "signature": {
+                "type": "string",
+                "description": "Base64 signature over payload bytes (Ed25519)."
+              },
+              "key_id": {
+                "type": "string",
+                "description": "Key identifier to resolve public key in trusted keyring (not in proposal)."
+              },
+              "attestor": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "id",
+              "type",
+              "ref",
+              "payload",
+              "alg",
+              "signature",
+              "key_id"
+            ],
+            "additionalProperties": false
+          }
+        ]
       }
     }
   },
-  "required": ["protocol", "intent", "impact", "provenance", "claims", "action"],
+  "required": [
+    "protocol",
+    "intent",
+    "impact",
+    "provenance",
+    "claims",
+    "action"
+  ],
   "additionalProperties": false
 }

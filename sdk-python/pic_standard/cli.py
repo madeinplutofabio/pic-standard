@@ -12,6 +12,9 @@ from .verifier import ActionProposal
 from .evidence import EvidenceSystem, apply_verified_ids_to_provenance
 from .config import load_policy, dump_policy
 
+# NEW: keys command
+from .keyring import TrustedKeyRing, KeyRingError
+
 
 def load_json(path: Path) -> dict:
     try:
@@ -159,6 +162,87 @@ def cmd_policy(*, repo_root: Path, write_example: bool = False) -> int:
     return 0
 
 
+# ------------------------------
+# NEW: Keyring helpers + command
+# ------------------------------
+def _find_keys_source(repo_root: Path) -> str:
+    """
+    Best-effort: explain where keys came from.
+    This mirrors TrustedKeyRing.load_default() priority:
+      PIC_KEYS_PATH env var
+      ./pic_keys.json in current working directory
+      none
+    """
+    env_path = (os.getenv("PIC_KEYS_PATH") or "").strip()
+    if env_path:
+        return f"PIC_KEYS_PATH={env_path}"
+
+    # By design, TrustedKeyRing.load_default() looks in CWD.
+    # For CLI ergonomics, we also tell the user if repo_root/pic_keys.json exists.
+    # (But we don't change load_default() behavior here.)
+    cwd_candidate = Path("pic_keys.json")
+    if cwd_candidate.exists():
+        return str(cwd_candidate.resolve())
+
+    repo_candidate = repo_root / "pic_keys.json"
+    if repo_candidate.exists():
+        return f"{repo_candidate} (note: loader uses CWD unless PIC_KEYS_PATH is set)"
+
+    return "none (no PIC_KEYS_PATH and no pic_keys.json found)"
+
+
+def cmd_keys(*, repo_root: Path, write_example: bool = False) -> int:
+    """
+    Validate and print the trusted keyring used for signature-based evidence (v0.4+).
+
+    - Loads from PIC_KEYS_PATH if set, otherwise from ./pic_keys.json if present.
+    - Prints loaded key IDs.
+    """
+    if write_example:
+        example = {
+            "trusted_keys": {
+                "cfo_key_v1": "<base64-ed25519-public-key-32-bytes>",
+                "billing_key_v1": "<hex-or-base64-or-pem>",
+            }
+        }
+        print(json.dumps(example, indent=2, ensure_ascii=False))
+        return 0
+
+    source = _find_keys_source(repo_root)
+
+    try:
+        ring = TrustedKeyRing.load_default()
+    except KeyRingError as e:
+        print("❌ Keyring invalid")
+        print(f"Source: {source}")
+        print(str(e))
+        return 6
+    except Exception as e:
+        print("❌ Keyring failed to load")
+        print(f"Source: {source}")
+        print(str(e))
+        return 6
+
+    key_ids = sorted(list(ring.keys.keys()))
+
+    print("✅ Keyring loaded")
+    print(f"Source: {source}")
+
+    if not key_ids:
+        print("No trusted keys configured (0 keys).")
+        print("To add keys:")
+        print("  1) Run: pic-cli keys --write-example > pic_keys.json")
+        print("  2) Edit pic_keys.json and paste your public keys")
+        print("  3) Re-run: pic-cli keys")
+        return 0
+
+    print(f"Trusted keys ({len(key_ids)}):")
+    for kid in key_ids:
+        print(f"- {kid}")
+
+    return 0
+
+
 def build_parser() -> argparse.ArgumentParser:
     p = argparse.ArgumentParser(prog="pic-cli", description="PIC Standard CLI utilities")
     sub = p.add_subparsers(dest="command", required=True)
@@ -190,6 +274,20 @@ def build_parser() -> argparse.ArgumentParser:
         help="Print an example policy JSON you can save as pic_policy.json.",
     )
 
+    # NEW: keys command
+    s5 = sub.add_parser("keys", help="Validate and print trusted signer keys (for signature evidence v0.4+)")
+    s5.add_argument(
+        "--repo-root",
+        type=Path,
+        default=Path(".").resolve(),
+        help="Repo root (used for nicer source hints; loader uses PIC_KEYS_PATH or CWD).",
+    )
+    s5.add_argument(
+        "--write-example",
+        action="store_true",
+        help="Print an example pic_keys.json you can save and edit.",
+    )
+
     return p
 
 
@@ -204,6 +302,8 @@ def main(argv: list[str] | None = None) -> int:
         return cmd_verify(args.proposal, verify_evidence=getattr(args, "verify_evidence", False))
     if args.command == "policy":
         return cmd_policy(repo_root=getattr(args, "repo_root"), write_example=getattr(args, "write_example", False))
+    if args.command == "keys":
+        return cmd_keys(repo_root=getattr(args, "repo_root"), write_example=getattr(args, "write_example", False))
 
     raise SystemExit("Unknown command")
 
