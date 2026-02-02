@@ -1,5 +1,15 @@
 {
   "trusted_keys": {
-    "demo_signer_v1": "u1esUbs/ZYS3PTPMIxiwsh47pyCUAv5VgzrmjEKbw6k="
-  }
+    "demo_signer_v1": {
+      "public_key": "u1esUbs/ZYS3PTPMIxiwsh47pyCUAv5VgzrmjEKbw6k=",
+      "expires_at": "2027-01-01T00:00:00Z"
+    },
+    "demo_signer_revoked_v0": {
+      "public_key": "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=",
+      "expires_at": "2025-01-01T00:00:00Z"
+    }
+  },
+  "revoked_keys": [
+    "demo_signer_revoked_v0"
+  ]
 }

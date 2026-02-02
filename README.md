@@ -92,9 +92,26 @@ PIC uses an **Action Proposal JSON** (protocol: `PIC/1.0`). The agent emits it r
 - **claims + evidence**: what the agent asserts and which evidence IDs support it
 - **action**: the actual tool call being attempted (**tool binding**)
 
+### Verifier rule (the enforcement boundary)
+
+The reference verifier is intentionally minimal and fail‑closed:
+
+- For **high‑impact** proposals, at least one claim must reference evidence from **TRUSTED** provenance.
+- **High‑impact includes `privacy`** (same gating class as `money` and `irreversible`).
+
+This closes a spec↔code gap: privacy is treated as a first‑class “must be trusted” side‑effect category.
+
+> Tool binding is an **integration‑time** check: integrations that know the actual runtime tool call enforce `proposal.action.tool` via `ActionProposal.verify_with_context(expected_tool=...)`.
+
 ---
 
 ## Evidence
+
+PIC supports deterministic evidence verification that can upgrade provenance trust **in-memory** (fail‑closed).
+
+- Evidence verification runs **before** the verifier (when enabled in your integration/CLI).
+- Any verified evidence ID upgrades `provenance[].trust → trusted` for matching provenance IDs.
+- Evidence lists may contain **mixed evidence types** (hash + signature) in the same proposal.
 
 ### Evidence v0.3 — Resolvable SHA‑256 artifacts (`type="hash"`)
 
@@ -180,21 +197,27 @@ PIC v0.4 adds **signature verification** so approvals can be endorsed by trusted
 pip install "pic-standard[crypto]"
 ```
 
-**Configure trusted keys**
+---
+
+## Keyring (trusted signers)
+
+Signature evidence is verified against a local keyring file.
 
 PIC loads keys from:
 - `PIC_KEYS_PATH` (if set), otherwise
 - `./pic_keys.json` (if present), otherwise
 - an empty keyring (no trusted signers configured)
 
-Example keyring file format:
+### Inspect keyring with the CLI
 
-```json
-{
-  "trusted_keys": {
-    "demo_signer_v1": "<base64-or-hex-or-PEM Ed25519 public key>"
-  }
-}
+```bash
+pic-cli keys
+```
+
+To generate an editable starter file:
+
+```bash
+pic-cli keys --write-example > pic_keys.json
 ```
 
 PowerShell example:
@@ -204,7 +227,47 @@ $env:PIC_KEYS_PATH=".\pic_keys.json"
 pic-cli keys
 ```
 
-**Run signature evidence verification**
+### Keyring file format
+
+Recommended:
+
+```json
+{
+  "trusted_keys": {
+    "demo_signer_v1": "u1esUbs/ZYS3PTPMIxiwsh47pyCUAv5VgzrmjEKbw6k=",
+    "cfo_key_v2": {
+      "public_key": "<base64-or-hex-or-PEM Ed25519 public key>",
+      "expires_at": "2026-12-31T23:59:59Z"
+    }
+  },
+  "revoked_keys": ["cfo_key_v1"]
+}
+```
+
+Supported key encodings for `public_key`:
+- base64 (recommended)
+- raw hex (`64` hex chars or `0x...`)
+- PEM (`-----BEGIN PUBLIC KEY----- ...`) *(requires `cryptography`)*
+
+### Expiry + revocation semantics
+
+A signature `key_id` is treated as **inactive** if any of the following are true:
+
+- the key is **missing**
+- the key ID is listed in `revoked_keys`
+- the key has `expires_at` and it is **expired** (UTC)
+
+Evidence verification distinguishes these cases for operator clarity (e.g., “revoked”, “expired”).
+
+**Key rotation guidance (practical)**
+- Add a new key ID (e.g. `cfo_key_v2`) to the keyring.
+- Start emitting proposals with `key_id="cfo_key_v2"`.
+- Add the old key ID to `revoked_keys` (or remove it) when you want to revoke/retire it.
+- Optionally set `expires_at` to force rotation hygiene.
+
+---
+
+## Run signature evidence verification
 
 Signed example:
 
@@ -234,11 +297,6 @@ Expected output:
 ❌ Evidence verification failed
 ```
 
-**Key rotation guidance (practical)**
-- Add a new key ID (e.g. `cfo_key_v2`) to the keyring.
-- Start emitting proposals with `key_id="cfo_key_v2"`.
-- Remove old key IDs when you want to revoke/retire them.
-
 ---
 
 ## Integrations
@@ -251,7 +309,8 @@ This repo provides:
 
 - `pic_standard.integrations.PICToolNode`: a drop‑in ToolNode wrapper that:
   - requires a PIC proposal in each tool call (`args["__pic"]`)
-  - validates **schema + verifier + tool binding**
+  - validates **schema + verifier**
+  - enforces **tool binding** via `ActionProposal.verify_with_context(expected_tool=...)`
   - blocks high‑impact calls when provenance is insufficient
   - returns `ToolMessage` outputs (LangGraph state)
 
@@ -305,6 +364,7 @@ This integration is designed for production defaults:
 - **No exception leakage by default** (`PIC_DEBUG` gating)
 - **Request correlation** (`request_id` / `__pic_request_id` appears in audit logs)
 - **Hard limits** (proposal size/items; evidence file sandbox + max bytes; evaluation time budget)
+- **Tool binding enforcement** via `ActionProposal.verify_with_context(expected_tool=...)`
 
 #### Run the MCP demo (stdio client ↔ stdio server)
 
@@ -399,6 +459,7 @@ graph TD
 - [✅] Phase 2: Reference Python verifier + CLI.
 - [✅] Phase 3: Anchor integrations (LangGraph + MCP).
 - [✅] Phase 4: Evidence verification (hash v0.3 + signature v0.4).
+- [⬜] Phase 5: Additional SDKs (TypeScript) + case studies + audit.
 
 ---
 

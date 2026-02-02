@@ -5,8 +5,9 @@ import json
 import os
 import re
 from dataclasses import dataclass
+from datetime import datetime, timezone
 from pathlib import Path
-from typing import Dict, Optional
+from typing import Any, Dict, Optional, Set, Literal
 
 
 _HEX_RE = re.compile(r"^[0-9a-fA-F]+$")
@@ -74,62 +75,264 @@ def _parse_public_key_to_bytes(value: str) -> bytes:
     return _maybe_b64decode(v)
 
 
+def _parse_expires_at(value: str) -> datetime:
+    """
+    Parse ISO8601 datetime. Recommended: "...Z" or explicit offset.
+
+    Accepts:
+      - 2026-12-31T23:59:59Z
+      - 2026-12-31T23:59:59+00:00
+      - 2026-12-31T23:59:59 (treated as UTC)
+    """
+    v = value.strip()
+    if not v:
+        raise KeyRingError("expires_at must be a non-empty string")
+
+    # Handle trailing Z
+    if v.endswith("Z") or v.endswith("z"):
+        v2 = v[:-1] + "+00:00"
+    else:
+        v2 = v
+
+    try:
+        dt = datetime.fromisoformat(v2)
+    except Exception as e:
+        raise KeyRingError("Invalid expires_at (expected ISO8601 datetime)") from e
+
+    # If naive, treat as UTC (explicit and deterministic)
+    if dt.tzinfo is None:
+        dt = dt.replace(tzinfo=timezone.utc)
+
+    return dt.astimezone(timezone.utc)
+
+
+@dataclass(frozen=True)
+class TrustedKey:
+    """
+    Single trusted key entry.
+
+    public_key: raw Ed25519 public key bytes (32 bytes).
+    expires_at: optional UTC datetime at which this key stops being trusted.
+    """
+    public_key: bytes
+    expires_at: Optional[datetime] = None
+
+
+KeyStatus = Literal["ok", "missing", "revoked", "expired"]
+
+
 @dataclass(frozen=True)
 class TrustedKeyRing:
     """
     Trusted key registry.
 
-    keys maps key_id -> raw public key bytes (Ed25519 public key should be 32 bytes).
+    - keys maps key_id -> TrustedKey(public_key, expires_at)
+    - revoked_keys contains key_ids that must be treated as untrusted
     """
-    keys: Dict[str, bytes]
+    keys: Dict[str, TrustedKey]
+    revoked_keys: Set[str]
 
-    def get(self, key_id: str) -> Optional[bytes]:
-        return self.keys.get(key_id)
+    def get(self, key_id: str, *, now: Optional[datetime] = None) -> Optional[bytes]:
+        """
+        Return raw public key bytes ONLY if the key is active (not revoked, not expired).
+        """
+        if not isinstance(key_id, str) or not key_id.strip():
+            return None
+
+        kid = key_id.strip()
+        if kid in self.revoked_keys:
+            return None
+
+        entry = self.keys.get(kid)
+        if entry is None:
+            return None
+
+        if entry.expires_at is not None:
+            n = now or datetime.now(timezone.utc)
+            if n.tzinfo is None:
+                n = n.replace(tzinfo=timezone.utc)
+            n = n.astimezone(timezone.utc)
+
+            if n >= entry.expires_at:
+                return None
+
+        return entry.public_key
+
+    # ---- NEW: status helpers (for evidence.py / CLI UX) ----
+
+    def key_status(self, key_id: str, *, now: Optional[datetime] = None) -> KeyStatus:
+        """
+        Return a stable status string for key_id:
+          - "missing"  -> not present in keys
+          - "revoked"  -> listed in revoked_keys
+          - "expired"  -> present but expires_at <= now
+          - "ok"       -> present and active
+        """
+        if not isinstance(key_id, str) or not key_id.strip():
+            return "missing"
+
+        kid = key_id.strip()
+        if kid in self.revoked_keys:
+            return "revoked"
+
+        entry = self.keys.get(kid)
+        if entry is None:
+            return "missing"
+
+        if entry.expires_at is not None:
+            n = now or datetime.now(timezone.utc)
+            if n.tzinfo is None:
+                n = n.replace(tzinfo=timezone.utc)
+            n = n.astimezone(timezone.utc)
+
+            if n >= entry.expires_at:
+                return "expired"
+
+        return "ok"
+
+    def get_entry(self, key_id: str) -> Optional[TrustedKey]:
+        """
+        Return the raw TrustedKey entry (even if expired), or None if missing.
+        Intended for diagnostics / tooling.
+        """
+        if not isinstance(key_id, str) or not key_id.strip():
+            return None
+        return self.keys.get(key_id.strip())
+
+    # ---- existing helpers ----
+
+    def is_revoked(self, key_id: str) -> bool:
+        return isinstance(key_id, str) and key_id.strip() in self.revoked_keys
+
+    def is_expired(self, key_id: str, *, now: Optional[datetime] = None) -> bool:
+        entry = self.keys.get(key_id.strip()) if isinstance(key_id, str) else None
+        if entry is None or entry.expires_at is None:
+            return False
+        n = now or datetime.now(timezone.utc)
+        if n.tzinfo is None:
+            n = n.replace(tzinfo=timezone.utc)
+        return n.astimezone(timezone.utc) >= entry.expires_at
 
     @staticmethod
-    def from_dict(d: Dict[str, str]) -> "TrustedKeyRing":
+    def _parse_trusted_keys_obj(obj: Dict[str, Any]) -> Dict[str, TrustedKey]:
         """
-        Accept a dict mapping key_id -> key_string (base64/hex/PEM).
+        Parse trusted_keys object.
+
+        Supported:
+          - "key_id": "<base64-or-hex-or-pem>"
+          - "key_id": { "public_key": "<...>", "expires_at": "..." }
         """
-        out: Dict[str, bytes] = {}
-        for key_id, key_str in d.items():
+        out: Dict[str, TrustedKey] = {}
+
+        for key_id, v in obj.items():
             if not isinstance(key_id, str) or not key_id.strip():
                 raise KeyRingError("key_id must be a non-empty string")
+            kid = key_id.strip()
 
-            if not isinstance(key_str, str) or not key_str.strip():
-                raise KeyRingError(f"Public key for '{key_id}' must be a non-empty string")
+            # Case A: shorthand string
+            if isinstance(v, str):
+                key_str = v
+                raw = _parse_public_key_to_bytes(key_str)
 
-            raw = _parse_public_key_to_bytes(key_str)
+                if len(raw) != 32:
+                    raise KeyRingError(
+                        f"Public key for '{kid}' has invalid length {len(raw)} bytes "
+                        "(expected 32 bytes for Ed25519)"
+                    )
 
-            # Ed25519 public keys are 32 bytes
-            if len(raw) != 32:
+                out[kid] = TrustedKey(public_key=raw, expires_at=None)
+                continue
+
+            # Case B: structured object
+            if isinstance(v, dict):
+                pk = v.get("public_key")
+                if not isinstance(pk, str) or not pk.strip():
+                    raise KeyRingError(f"Public key for '{kid}' must be a non-empty string")
+
+                raw = _parse_public_key_to_bytes(pk)
+
+                if len(raw) != 32:
+                    raise KeyRingError(
+                        f"Public key for '{kid}' has invalid length {len(raw)} bytes "
+                        "(expected 32 bytes for Ed25519)"
+                    )
+
+                expires_at_val = v.get("expires_at")
+                expires_at: Optional[datetime] = None
+                if expires_at_val is not None:
+                    if not isinstance(expires_at_val, str):
+                        raise KeyRingError(f"expires_at for '{kid}' must be a string (ISO8601)")
+                    expires_at = _parse_expires_at(expires_at_val)
+
+                out[kid] = TrustedKey(public_key=raw, expires_at=expires_at)
+                continue
+
+            raise KeyRingError(
+                f"Invalid trusted_keys entry for '{kid}': expected string or object"
+            )
+
+        return out
+
+    @staticmethod
+    def from_dict(d: Dict[str, Any]) -> "TrustedKeyRing":
+        """
+        Build a keyring from a dict.
+
+        Supported formats:
+
+        1) Recommended:
+          {
+            "trusted_keys": {
+              "cfo_key_v1": "<base64-or-hex-or-pem>",
+              "billing_key_v2": { "public_key": "<...>", "expires_at": "..." }
+            },
+            "revoked_keys": ["old_key_v0"]
+          }
+
+        2) Minimal legacy:
+          {
+            "cfo_key_v1": "<...>",
+            "billing_key_v2": "<...>"
+          }
+        """
+        if not isinstance(d, dict):
+            raise KeyRingError("Keyring JSON must be an object")
+
+        revoked: Set[str] = set()
+
+        # Preferred: explicit trusted_keys object
+        if "trusted_keys" in d and isinstance(d.get("trusted_keys"), dict):
+            keys_obj = d["trusted_keys"]
+            keys = TrustedKeyRing._parse_trusted_keys_obj(keys_obj)
+
+            rk = d.get("revoked_keys")
+            if rk is not None:
+                if not isinstance(rk, list) or not all(isinstance(x, str) for x in rk):
+                    raise KeyRingError("revoked_keys must be a list of strings")
+                revoked = {x.strip() for x in rk if x.strip()}
+
+            return TrustedKeyRing(keys=keys, revoked_keys=revoked)
+
+        # Legacy/minimal: assume the whole dict is key_id -> key_string
+        # Ignore optional top-level fields if someone accidentally included them.
+        filtered: Dict[str, Any] = {
+            k: v for k, v in d.items() if k not in {"revoked_keys", "trusted_keys"}
+        }
+
+        # If they used minimal, values must be strings
+        for k, v in filtered.items():
+            if not isinstance(v, str):
                 raise KeyRingError(
-                    f"Public key for '{key_id}' has invalid length {len(raw)} bytes "
-                    "(expected 32 bytes for Ed25519)"
+                    "Legacy keyring format expects a mapping of key_id -> key_string"
                 )
 
-            out[key_id] = raw
-
-        return TrustedKeyRing(keys=out)
+        keys = TrustedKeyRing._parse_trusted_keys_obj(filtered)  # type: ignore[arg-type]
+        return TrustedKeyRing(keys=keys, revoked_keys=set())
 
     @staticmethod
     def from_json_file(path: Path) -> "TrustedKeyRing":
         """
         Load from a JSON file.
-
-        Supported file format (recommended):
-          {
-            "trusted_keys": {
-              "cfo_key_v1": "<base64-or-hex-or-pem>",
-              "billing_key_v2": "<...>"
-            }
-          }
-
-        Also accepted (minimal):
-          {
-            "cfo_key_v1": "<...>",
-            "billing_key_v2": "<...>"
-          }
         """
         if not path.exists():
             raise KeyRingError(f"Keyring file not found: {path}")
@@ -139,15 +342,10 @@ class TrustedKeyRing:
         except Exception as e:
             raise KeyRingError(f"Invalid JSON in keyring file: {path}") from e
 
-        if isinstance(data, dict) and "trusted_keys" in data and isinstance(data["trusted_keys"], dict):
-            return TrustedKeyRing.from_dict(data["trusted_keys"])
+        if not isinstance(data, dict):
+            raise KeyRingError("Keyring JSON must be an object")
 
-        if isinstance(data, dict):
-            # assume it's already a key_id -> key map
-            # (this keeps the format dead simple if you want)
-            return TrustedKeyRing.from_dict({k: v for k, v in data.items()})
-
-        raise KeyRingError("Keyring JSON must be an object")
+        return TrustedKeyRing.from_dict(data)
 
     @staticmethod
     def load_default() -> "TrustedKeyRing":
@@ -165,4 +363,4 @@ class TrustedKeyRing:
         if default.exists():
             return TrustedKeyRing.from_json_file(default)
 
-        return TrustedKeyRing(keys={})
+        return TrustedKeyRing(keys={}, revoked_keys=set())

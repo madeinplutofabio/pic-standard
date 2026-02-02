@@ -1,7 +1,5 @@
 from __future__ import annotations
 
-from pathlib import Path
-
 from pic_standard.policy import PICPolicy
 from pic_standard.integrations.mcp_pic_guard import guard_mcp_tool
 
@@ -48,6 +46,26 @@ def test_guard_allows_trusted_money():
 
     # ✅ New deterministic success envelope contract (v0.3.2 hardening)
     assert out == {"isError": False, "result": "sent $500"}
+
+
+def test_guard_blocks_tool_binding_mismatch():
+    policy = PICPolicy(impact_by_tool={"payments_send": "money"})
+    wrapped = guard_mcp_tool("payments_send", _tool, policy=policy, verify_evidence=False)
+
+    bad = _proposal("trusted")
+    bad["action"]["tool"] = "some_other_tool"  # mismatch on purpose
+
+    out = wrapped(amount=500, __pic=bad)
+    assert isinstance(out, dict)
+    assert out.get("isError") is True
+
+    err = out.get("error") or {}
+    code = (err.get("code") or "").upper()
+    msg = (err.get("message") or "").lower()
+
+    # Strong but not brittle: must clearly be a tool-binding block.
+    assert "TOOL" in code and ("BIND" in code or "MISMATCH" in code)
+    assert "tool" in msg and ("bind" in msg or "mismatch" in msg)
 
 
 def test_mcp_guard_does_not_leak_internal_exception_details_by_default(monkeypatch):

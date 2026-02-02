@@ -5,6 +5,32 @@ All notable changes to this project will be documented in this file.
 This project follows Semantic Versioning:
 https://semver.org/
 
+## [0.4.1] - 2026-02-02
+### Added
+- **Privacy is enforced as high-impact** in the reference verifier (same fail-closed gating class as `money` and `irreversible`).
+- **Keyring expiry + revocation**:
+  - `expires_at` (optional, per key) to enforce key expiration (UTC).
+  - `revoked_keys` (optional list) to hard-disable signer key IDs.
+  - Key status helpers for tooling/UX (`ok | missing | revoked | expired`).
+- **CLI: `pic-cli keys`**:
+  - Validates and prints the active keyring used for signature evidence (v0.4+).
+  - `--write-example` now emits the recommended `trusted_keys + revoked_keys` structure and shows `expires_at`.
+
+### Tests
+- Keyring parsing tests for base64/hex/PEM + errors, plus expiry/revocation.
+- CLI `keys` command tests.
+- Tool binding mismatch tests (LangGraph + MCP guard).
+- Mixed evidence proposal tests (hash + sig entries in the same proposal).
+
+### Docs
+- README updated to document:
+  - privacy as high-impact,
+  - key expiry/revocation,
+  - `pic-cli keys` workflow,
+  - mixed evidence behavior.
+
+---
+
 ## [0.4.0] - 2026-01-30
 ### Added
 - **Signature evidence (Ed25519)**: `evidence[].type="sig"` verifies an Ed25519 signature over `payload` bytes using a trusted key resolved from the keyring (`key_id`).

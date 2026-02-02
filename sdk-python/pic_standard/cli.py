@@ -85,7 +85,7 @@ def cmd_verify(proposal_path: Path, *, verify_evidence: bool = False) -> int:
 
     proposal = load_json(proposal_path)
 
-    # Optional evidence verification (v0.3)
+    # Optional evidence verification (v0.3+)
     if verify_evidence:
         es = EvidenceSystem()
         report = es.verify_all(proposal, base_dir=proposal_path.parent)
@@ -163,7 +163,7 @@ def cmd_policy(*, repo_root: Path, write_example: bool = False) -> int:
 
 
 # ------------------------------
-# NEW: Keyring helpers + command
+# Keyring helpers + command
 # ------------------------------
 def _find_keys_source(repo_root: Path) -> str:
     """
@@ -201,9 +201,13 @@ def cmd_keys(*, repo_root: Path, write_example: bool = False) -> int:
     if write_example:
         example = {
             "trusted_keys": {
-                "cfo_key_v1": "<base64-ed25519-public-key-32-bytes>",
-                "billing_key_v1": "<hex-or-base64-or-pem>",
-            }
+                "demo_signer_v1": "<base64-ed25519-public-key-32-bytes>",
+                "cfo_key_v2": {
+                    "public_key": "<base64-or-hex-or-pem>",
+                    "expires_at": "2026-12-31T23:59:59Z",
+                },
+            },
+            "revoked_keys": ["cfo_key_v1"],
         }
         print(json.dumps(example, indent=2, ensure_ascii=False))
         return 0
@@ -274,7 +278,6 @@ def build_parser() -> argparse.ArgumentParser:
         help="Print an example policy JSON you can save as pic_policy.json.",
     )
 
-    # NEW: keys command
     s5 = sub.add_parser("keys", help="Validate and print trusted signer keys (for signature evidence v0.4+)")
     s5.add_argument(
         "--repo-root",

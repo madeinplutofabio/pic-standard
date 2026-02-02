@@ -46,10 +46,12 @@ def verify_pic_proposal(
     expected_tool_name: Optional[str] = None,
 ) -> ActionProposal:
     """
-    Verify proposal in 3 layers:
+    Verify proposal in 2 layers (+ context when available):
       1) JSON Schema validation
       2) Reference verifier (pydantic + PIC rules)
-      3) Optional tool binding: proposal.action.tool must match the actual tool being called
+
+    Tool binding is enforced ONLY at integration boundaries (LangGraph/MCP),
+    via ActionProposal.verify_with_context(expected_tool=...).
 
     Raises ValueError with clean messages on failure.
     """
@@ -63,16 +65,16 @@ def verify_pic_proposal(
     try:
         ap = ActionProposal(**proposal)
     except Exception as e:
-        # Convert pydantic ValidationError into a clean ValueError message
         raise ValueError(f"PIC blocked: {_clean_pydantic_error(e)}") from e
 
     if expected_tool_name is not None:
-        tool_in_proposal = (ap.action or {}).get("tool")
-        if tool_in_proposal != expected_tool_name:
-            raise ValueError(
-                f"PIC blocked: tool binding failed (proposal.action.tool='{tool_in_proposal}' "
-                f"but tool call requested '{expected_tool_name}')."
-            )
+        # Canonical tool binding lives in verifier; integrations provide runtime context.
+        try:
+            ap.verify_with_context(expected_tool=expected_tool_name)
+        except Exception as e:
+            # Keep the message clean and deterministic.
+            msg = str(e) or "tool binding failed"
+            raise ValueError(f"PIC blocked: {msg}") from e
 
     return ap
 
@@ -88,7 +90,7 @@ class PICToolNode:
     Enforces:
       - schema validation
       - verifier rules
-      - tool binding (proposal.action.tool must match tool call name)
+      - tool binding via ActionProposal.verify_with_context(expected_tool=...)
 
     Then executes the tool and returns ToolMessages.
     """
@@ -136,7 +138,7 @@ class PICToolNode:
                     f"PIC invalid: args['{PIC_ARG_KEY}'] must be a dict (parsed JSON), got {type(proposal)}."
                 )
 
-            # Enforce PIC BEFORE calling the tool
+            # Enforce PIC BEFORE calling the tool (includes tool binding via verify_with_context)
             verify_pic_proposal(proposal, expected_tool_name=name)
 
             # Execute tool

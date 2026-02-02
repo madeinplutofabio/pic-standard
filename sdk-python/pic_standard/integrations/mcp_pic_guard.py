@@ -17,7 +17,7 @@ from pic_standard.errors import PICError, PICErrorCode
 from pic_standard.policy import PICPolicy
 from pic_standard.verifier import ActionProposal
 
-# v0.3 evidence (optional)
+# v0.3+ evidence (optional)
 try:
     from pic_standard.evidence import EvidenceSystem, apply_verified_ids_to_provenance
 except Exception:  # pragma: no cover
@@ -116,18 +116,15 @@ def _enforce_limits(proposal: Dict[str, Any], limits: PICEvaluateLimits) -> None
         )
 
 
-def verify_pic_proposal(
-    proposal: Dict[str, Any],
-    *,
-    expected_tool_name: Optional[str] = None,
-) -> ActionProposal:
+def verify_pic_proposal(proposal: Dict[str, Any]) -> ActionProposal:
     """
     Verify PIC proposal:
       1) JSON Schema validation
       2) Reference verifier (pydantic + PIC rules)
-      3) Tool binding: proposal.action.tool must match the actual tool being called
 
-    Contract violations are expected policy blocks, classified as POLICY_VIOLATION.
+    NOTE:
+    Tool binding is enforced in integrations via:
+      ActionProposal.verify_with_context(expected_tool=...)
     """
     schema = _load_packaged_schema()
 
@@ -141,6 +138,7 @@ def verify_pic_proposal(
 
     try:
         ap = ActionProposal(**proposal)
+        return ap
     except Exception as e:
         msg = str(e) or "PIC contract violation"
         if _debug_enabled():
@@ -153,32 +151,6 @@ def verify_pic_proposal(
             code=PICErrorCode.POLICY_VIOLATION,
             message="PIC contract violation",
         ) from e
-
-    # Tool binding
-    action_tool = None
-    try:
-        if isinstance(ap.action, dict):
-            action_tool = ap.action.get("tool")
-        else:
-            action_tool = getattr(ap.action, "tool", None)
-    except Exception:
-        action_tool = None
-
-    if expected_tool_name:
-        if not action_tool:
-            raise PICError(
-                code=PICErrorCode.TOOL_BINDING_MISMATCH,
-                message="Tool binding missing: proposal.action.tool is required",
-                details={"expected": expected_tool_name},
-            )
-        if action_tool != expected_tool_name:
-            raise PICError(
-                code=PICErrorCode.TOOL_BINDING_MISMATCH,
-                message="Tool binding mismatch",
-                details={"expected": expected_tool_name, "proposal_action_tool": action_tool},
-            )
-
-    return ap
 
 
 def _audit_decision(
@@ -272,7 +244,24 @@ def evaluate_pic_for_tool_call(
     proposal_impact = proposal.get("impact")
     impact = policy.get_tool_impact(tool_name, proposal_impact=proposal_impact)
 
-    ap = verify_pic_proposal(proposal, expected_tool_name=tool_name)
+    # Schema + verifier rules (offline-capable)
+    ap = verify_pic_proposal(proposal)
+
+    # Tool binding is enforced only when runtime context exists (integration boundary)
+    try:
+        ap.verify_with_context(expected_tool=tool_name)
+    except Exception as e:
+        msg = str(e) or "Tool binding mismatch"
+        if _debug_enabled():
+            raise PICError(
+                code=PICErrorCode.TOOL_BINDING_MISMATCH,
+                message="Tool binding mismatch",
+                details={"expected": tool_name, "error": msg},
+            ) from e
+        raise PICError(
+            code=PICErrorCode.TOOL_BINDING_MISMATCH,
+            message="Tool binding mismatch",
+        ) from e
 
     verified_count = 0
 
@@ -307,7 +296,24 @@ def evaluate_pic_for_tool_call(
 
             verified_count = len(report.verified_ids)
             upgraded = apply_verified_ids_to_provenance(proposal, report.verified_ids)  # type: ignore
-            ap = verify_pic_proposal(upgraded, expected_tool_name=tool_name)
+
+            ap = verify_pic_proposal(upgraded)
+
+            # Enforce binding again on the upgraded proposal
+            try:
+                ap.verify_with_context(expected_tool=tool_name)
+            except Exception as e:
+                msg = str(e) or "Tool binding mismatch"
+                if _debug_enabled():
+                    raise PICError(
+                        code=PICErrorCode.TOOL_BINDING_MISMATCH,
+                        message="Tool binding mismatch",
+                        details={"expected": tool_name, "error": msg},
+                    ) from e
+                raise PICError(
+                    code=PICErrorCode.TOOL_BINDING_MISMATCH,
+                    message="Tool binding mismatch",
+                ) from e
 
     eval_ms = int((time.perf_counter() - t0) * 1000)
     if eval_ms > int(limits.max_eval_ms):
