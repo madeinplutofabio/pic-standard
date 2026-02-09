@@ -1,0 +1,52 @@
+{
+    "name": "@pic-standard/openclaw-plugin",
+    "version": "0.5.0",
+    "description": "PIC Standard governance plugin for OpenClaw",
+    "type": "module",
+    "main": "dist/index.js",
+    "types": "dist/index.d.ts",
+    "scripts": {
+        "build": "tsc",
+        "clean": "rm -rf dist",
+        "test": "vitest run",
+        "test:watch": "vitest",
+        "prepublishOnly": "npm run build"
+    },
+    "engines": {
+        "node": ">=18.0.0"
+    },
+    "files": [
+        "dist",
+        "hooks",
+        "config"
+    ],
+    "keywords": [
+        "pic",
+        "provenance",
+        "intent",
+        "contracts",
+        "openclaw",
+        "plugin",
+        "ai-safety",
+        "tool-governance"
+    ],
+    "author": "Fabio Marcello Salvadori",
+    "license": "Apache-2.0",
+    "homepage": "https://github.com/madeinplutofabio/pic-standard/tree/main/integrations/openclaw",
+    "repository": {
+        "type": "git",
+        "url": "https://github.com/madeinplutofabio/pic-standard.git",
+        "directory": "integrations/openclaw"
+    },
+    "bugs": {
+        "url": "https://github.com/madeinplutofabio/pic-standard/issues"
+    },
+    "peerDependencies": {
+        "openclaw": ">=2026.2.1"
+    },
+    "devDependencies": {
+        "@types/node": "^20.19.32",
+        "typescript": "^5.9.3",
+        "vitest": "^1.6.1"
+    }
+}

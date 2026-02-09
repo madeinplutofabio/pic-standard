@@ -1,0 +1,119 @@
+# PIC Standard Plugin for OpenClaw
+
+Enforces [Provenance & Intent Contracts](https://github.com/pic-standard/pic-standard)
+on OpenClaw tool calls via the hook API.
+
+## How It Works
+
+The plugin uses three hooks to gate, contextualize, and audit tool calls:
+
+| Hook         | Event                | Priority | Purpose                                    |
+|--------------|----------------------|----------|--------------------------------------------|
+| `pic-gate`   | `before_tool_call`   | 100      | Verify `__pic` proposals — block or allow  |
+| `pic-init`   | `before_agent_start` | 50       | Inject PIC awareness into the session      |
+| `pic-audit`  | `tool_result_persist`| 200      | Log structured audit records               |
+
+All verification happens via the **PIC HTTP bridge** — a Python stdlib server
+that wraps the existing `evaluate_pic_for_tool_call()` pipeline.
+
+## Prerequisites
+
+- OpenClaw ≥ v2026.2.1
+- Python ≥ 3.10 with `pic-standard` installed
+- Node ≥ 18
+
+## Building
+
+The plugin is written in TypeScript. Before OpenClaw can load it, you must compile to JavaScript:
+
+```bash
+cd integrations/openclaw
+npm install
+npm run build
+```
+
+This creates a `dist/` directory with compiled `.js` files. OpenClaw loads from `dist/index.js`.
+
+> **Note:** If you modify any `.ts` files, re-run `npm run build`.
+
+## Setup
+
+### 1. Start the bridge
+
+```bash
+pic-cli serve --port 7580
+```
+
+### 2. Build and install the plugin
+
+```bash
+cd integrations/openclaw
+npm install && npm run build
+cp -r . ~/.openclaw/plugins/pic-guard/
+```
+
+### 3. Configure (optional)
+
+```bash
+cp config/pic-plugin.example.json ~/.openclaw/plugins/pic-guard/config/pic-plugin.json
+```
+
+Default config:
+
+```json
+{
+  "bridge_url": "http://127.0.0.1:7580",
+  "bridge_timeout_ms": 500,
+  "log_level": "info"
+}
+```
+
+## File Structure
+
+```
+integrations/openclaw/
+├── openclaw.plugin.json         Plugin manifest
+├── index.ts                     Entry point (registers hooks)
+├── package.json                 Node package metadata
+├── tsconfig.json                TypeScript configuration
+├── config/
+│   └── pic-plugin.example.json  Default configuration
+├── lib/
+│   ├── types.ts                 TypeScript types
+│   └── pic-client.ts            Fail-closed HTTP client
+├── hooks/
+│   ├── pic-gate/                before_tool_call — primary gate
+│   │   ├── HOOK.md
+│   │   └── handler.ts
+│   ├── pic-init/                before_agent_start — awareness injection
+│   │   ├── HOOK.md
+│   │   └── handler.ts
+│   └── pic-audit/               tool_result_persist — audit trail
+│       ├── HOOK.md
+│       └── handler.ts
+└── dist/                        Compiled JavaScript (after npm run build)
+```
+
+## Fail-Closed Design
+
+The plugin **never fails open**. If the bridge is unreachable, times out,
+or returns a malformed response, the tool call is blocked. This is enforced
+at two levels:
+
+- **`pic-client.ts`** — `verifyToolCall()` catches all errors and returns:
+
+  ```ts
+  { allowed: false, error: { code: "PIC_BRIDGE_UNREACHABLE" } }
+  ```
+
+- **`pic-gate/handler.ts`** — maps every non-allowed response to:
+
+  ```ts
+  { block: true, blockReason: "..." }
+  ```
+
+## Full Documentation
+
+See [docs/openclaw-integration.md](../../docs/openclaw-integration.md) for
+the complete integration guide including architecture diagrams, policy setup,
+the MCP sidecar alternative, and troubleshooting.

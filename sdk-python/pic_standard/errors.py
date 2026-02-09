@@ -22,6 +22,10 @@ class PICErrorCode(str, Enum):
     # Policy
     POLICY_VIOLATION = "PIC_POLICY_VIOLATION"
 
+    # Internal (catch-all for unexpected errors in the bridge)
+    INTERNAL_ERROR = "PIC_INTERNAL_ERROR"
+
+
 
 @dataclass
 class PICError(Exception):

@@ -1,0 +1,5 @@
+{
+    "bridge_url": "http://127.0.0.1:7580",
+    "bridge_timeout_ms": 500,
+    "log_level": "info"
+}

@@ -15,6 +15,9 @@ from .config import load_policy, dump_policy
 # NEW: keys command
 from .keyring import TrustedKeyRing, KeyRingError
 
+# NEW: serve command
+from .integrations.http_bridge import start_bridge
+
 
 def load_json(path: Path) -> dict:
     try:
@@ -247,6 +250,26 @@ def cmd_keys(*, repo_root: Path, write_example: bool = False) -> int:
     return 0
 
 
+# ------------------------------
+# HTTP bridge command
+# ------------------------------
+def cmd_serve(*, host: str, port: int, repo_root: Path, verify_evidence: bool = False) -> int:
+    """Start the PIC HTTP bridge server."""
+    policy = load_policy(repo_root=repo_root)
+    source = _find_policy_source(repo_root)
+    print(f"Starting PIC HTTP bridge on {host}:{port}")
+    print(f"Policy: {source}")
+    start_bridge(
+        host=host,
+        port=port,
+        policy=policy,
+        verify_evidence=verify_evidence,
+        proposal_base_dir=repo_root,
+        evidence_root_dir=repo_root,
+    )
+    return 0  # unreachable unless KeyboardInterrupt
+
+
 def build_parser() -> argparse.ArgumentParser:
     p = argparse.ArgumentParser(prog="pic-cli", description="PIC Standard CLI utilities")
     sub = p.add_subparsers(dest="command", required=True)
@@ -291,6 +314,30 @@ def build_parser() -> argparse.ArgumentParser:
         help="Print an example pic_keys.json you can save and edit.",
     )
 
+    s6 = sub.add_parser("serve", help="Start the PIC HTTP bridge server for non-Python integrations")
+    s6.add_argument(
+        "--host",
+        default="127.0.0.1",
+        help="Bind address (default: 127.0.0.1).",
+    )
+    s6.add_argument(
+        "--port",
+        type=int,
+        default=7580,
+        help="Listen port (default: 7580).",
+    )
+    s6.add_argument(
+        "--repo-root",
+        type=Path,
+        default=Path(".").resolve(),
+        help="Repo root for policy and evidence files (default: current working directory).",
+    )
+    s6.add_argument(
+        "--verify-evidence",
+        action="store_true",
+        help="Enable evidence verification for incoming proposals.",
+    )
+
     return p
 
 
@@ -307,6 +354,13 @@ def main(argv: list[str] | None = None) -> int:
         return cmd_policy(repo_root=getattr(args, "repo_root"), write_example=getattr(args, "write_example", False))
     if args.command == "keys":
         return cmd_keys(repo_root=getattr(args, "repo_root"), write_example=getattr(args, "write_example", False))
+    if args.command == "serve":
+        return cmd_serve(
+            host=args.host,
+            port=args.port,
+            repo_root=args.repo_root,
+            verify_evidence=getattr(args, "verify_evidence", False),
+        )
 
     raise SystemExit("Unknown command")
 

@@ -5,6 +5,38 @@ All notable changes to this project will be documented in this file.
 This project follows Semantic Versioning:
 https://semver.org/
 
+## [0.5.0] - 2026-02-09
+### Added
+- **OpenClaw integration**: Full plugin for OpenClaw AI agent platform
+  - `pic-gate` hook — verifies PIC proposals before tool execution (fail-closed)
+  - `pic-init` hook — injects PIC awareness at session start
+  - `pic-audit` hook — structured audit logging for tool executions
+  - HTTP bridge server (`pic-cli serve`) for TypeScript/Go/etc. consumers
+  - Comprehensive TypeScript types and fail-closed HTTP client
+
+### Security / Hardening
+- HTTP bridge hardening:
+  - Negative Content-Length rejection with logging
+  - 5-second socket read timeout (DoS protection)
+  - Incomplete body detection
+  - JSON object type validation
+  - 1MB request body limit (MAX_REQUEST_BYTES)
+- TypeScript client hardening:
+  - VALID_ERROR_CODES validation (rejects unknown error codes)
+  - Strict toolName validation in pic-gate
+  - HTTP status check before JSON parsing
+- Added `PIC_INTERNAL_ERROR` to Python error codes enum for type safety
+
+### Tests
+- Python: 20 tests for HTTP bridge (Content-Length edge cases, non-dict JSON body, etc.)
+- TypeScript: 9 tests for pic-client (fail-closed behavior, error code validation, eval_ms handling)
+
+### Docs
+- `docs/openclaw-integration.md` — comprehensive guide (architecture, setup, production deployment)
+- `integrations/openclaw/README.md` — plugin-specific documentation
+
+---
+
 ## [0.4.1] - 2026-02-02
 ### Added
 - **Privacy is enforced as high-impact** in the reference verifier (same fail-closed gating class as `money` and `irreversible`).
@@ -110,4 +142,3 @@ https://semver.org/
 - Conformance tests validating examples against the schema and verifier
 - GitHub Actions CI workflow
 - Contribution guidelines and issue templates
-
