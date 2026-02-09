@@ -5,6 +5,19 @@ All notable changes to this project will be documented in this file.
 This project follows Semantic Versioning:
 https://semver.org/
 
+## [0.5.1] - 2026-02-09
+
+### Fixed (OpenClaw Conformance)
+- Added required `configSchema` to plugin manifest
+- Added `uiHints` for OpenClaw Control UI form rendering
+- Made `pic-audit` handler synchronous (required for `tool_result_persist`)
+- Updated HOOK.md frontmatter to use `metadata.openclaw.events` format
+- Fixed installation paths: `~/.openclaw/plugins/` → `~/.openclaw/extensions/`
+- Added `openclaw.plugin.json` to npm package files array
+- Removed non-standard `hooks` array from manifest (auto-discovered)
+
+---
+
 ## [0.5.0] - 2026-02-09
 ### Added
 - **OpenClaw integration**: Full plugin for OpenClaw AI agent platform
