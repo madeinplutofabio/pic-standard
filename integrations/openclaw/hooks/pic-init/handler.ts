@@ -14,21 +14,31 @@
 import type { PICPluginConfig } from "../../lib/types.js";
 import { DEFAULT_CONFIG } from "../../lib/types.js";
 
+// TODO: Future enhancement — make awareness message configurable via plugin
+// config or environment variable for i18n or custom agent instructions.
+
 const PIC_AWARENESS_MESSAGE = `\
 [PIC Standard] This session is governed by Provenance & Intent Contracts.
 
-For high-impact tool calls (file writes, money transfers, irreversible
-actions), you MUST include a __pic field in the tool parameters containing:
-  - intent: why this action is needed
-  - impact: array of impact classes (MONEY, IRREVERSIBLE, PRIVACY, etc.)
-  - provenance: { source, trust_level } identifying the instruction origin
-  - claims: array of verifiable assertions
-  - action: { tool, params_hash } binding the proposal to a specific call
+For high-impact tool calls (money transfers, data exports, irreversible
+actions), you MUST include a __pic field in the tool parameters with:
+  - intent: why this action is needed (string)
+  - impact: impact class (e.g., "money", "privacy", "irreversible")
+  - provenance: array of { id, trust } identifying instruction origins
+  - claims: array of { text, evidence } — verifiable assertions
+  - action: { tool, args } binding the proposal to the specific call
+
+Example __pic structure:
+{
+  "intent": "Transfer funds for approved invoice",
+  "impact": "money",
+  "provenance": [{ "id": "user_request", "trust": "trusted" }],
+  "claims": [{ "text": "Invoice verified", "evidence": ["invoice_hash"] }],
+  "action": { "tool": "payments_send", "args": { "amount": 100 } }
+}
 
 Tool calls without valid __pic proposals will be BLOCKED for high-impact
-operations. Low-impact tools may proceed without __pic.
-
-Refer to the PIC Standard documentation for the full contract schema.`;
+operations. Low-impact tools may proceed without __pic.`;
 
 /**
  * Load plugin config from the OpenClaw plugin context.
@@ -57,6 +67,10 @@ export default async function handler(
 
     // ── Inject PIC awareness ───────────────────────────────────────────
     event.messages.push(PIC_AWARENESS_MESSAGE);
+
+    if (config.log_level === "debug") {
+        console.debug("[pic-init] Injected awareness message:", PIC_AWARENESS_MESSAGE);
+    }
 
     // ── Early health check (best-effort, never blocks) ─────────────────
     const controller = new AbortController();
@@ -90,3 +104,4 @@ export default async function handler(
         console.log("[pic-init] PIC awareness injected into session");
     }
 }
+

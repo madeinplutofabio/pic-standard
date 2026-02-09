@@ -6,7 +6,8 @@
  * returns { allowed: false } — never throws.
  */
 
-import { PICVerifyRequest, PICVerifyResponse, PICPluginConfig, PICErrorCode, DEFAULT_CONFIG } from "./types.js";
+import type { PICErrorCode, PICError, PICVerifyResponse } from "./types.js";
+import { PICVerifyRequest, PICPluginConfig, DEFAULT_CONFIG } from "./types.js";
 
 /** Valid PIC error codes for runtime validation. */
 const VALID_ERROR_CODES: readonly PICErrorCode[] = [
@@ -21,6 +22,11 @@ const VALID_ERROR_CODES: readonly PICErrorCode[] = [
     "PIC_INTERNAL_ERROR",
     "PIC_BRIDGE_UNREACHABLE",
 ];
+
+// TODO: Future telemetry hook point
+// - count of failed bridge calls
+// - average eval_ms
+// - distribution of error.code values
 
 /**
  * Verify a tool call against the PIC HTTP bridge.
@@ -60,32 +66,47 @@ export async function verifyToolCall(
             return failClosed(`Bridge returned HTTP ${resp.status}`);
         }
 
-        const json = (await resp.json()) as PICVerifyResponse;
+        const json = (await resp.json()) as Record<string, unknown>;
 
         // Sanity-check the response shape
         if (typeof json.allowed !== "boolean") {
+            console.warn(`[pic-client] Malformed response: ${JSON.stringify(json)}`);
             return failClosed("Malformed bridge response: missing 'allowed'");
         }
-        if (!json.allowed) {
-            if (typeof json.error?.code !== "string") {
-                return failClosed("Malformed bridge response: denial missing error code");
+
+        // Normalize eval_ms
+        const eval_ms = typeof json.eval_ms === "number" ? json.eval_ms : 0;
+
+        if (json.allowed === true) {
+            // Success case: allowed: true, error: null
+            if (config.log_level === "debug") {
+                console.debug(`[pic-client] result: allowed=true eval_ms=${eval_ms}`);
             }
-            if (!VALID_ERROR_CODES.includes(json.error.code as PICErrorCode)) {
-                return failClosed(`Malformed bridge response: unknown error code '${json.error.code}'`);
-            }
+            return { allowed: true, error: null, eval_ms };
         }
-        if (typeof json.eval_ms !== "number") {
-            json.eval_ms = 0;
+
+        // Denial case: allowed: false, error: PICError
+        const error = json.error as Record<string, unknown> | null | undefined;
+        if (!error || typeof error.code !== "string") {
+            console.warn(`[pic-client] Malformed denial response: ${JSON.stringify(json)}`);
+            return failClosed("Malformed bridge response: denial missing error code");
         }
+        if (!VALID_ERROR_CODES.includes(error.code as PICErrorCode)) {
+            console.warn(`[pic-client] Unknown error code: ${error.code}`);
+            return failClosed(`Malformed bridge response: unknown error code '${error.code}'`);
+        }
+
+        const picError: PICError = {
+            code: error.code as PICErrorCode,
+            message: typeof error.message === "string" ? error.message : "Unknown error",
+            details: typeof error.details === "object" ? (error.details as Record<string, unknown>) : undefined,
+        };
 
         if (config.log_level === "debug") {
-            console.debug(
-                `[pic-client] result: allowed=${json.allowed} eval_ms=${json.eval_ms}` +
-                (json.error ? ` code=${json.error.code}` : ""),
-            );
+            console.debug(`[pic-client] result: allowed=false eval_ms=${eval_ms} code=${picError.code}`);
         }
 
-        return json;
+        return { allowed: false, error: picError, eval_ms };
     } catch (err: unknown) {
         const message =
             err instanceof Error ? err.message : "Unknown bridge error";

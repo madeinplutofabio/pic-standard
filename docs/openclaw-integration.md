@@ -13,17 +13,17 @@ verifies Provenance & Intent Contracts on every tool call before execution.
 ┌──────────────────────────────────────────────────────────┐
 │  OpenClaw Agent Runtime (TypeScript)                     │
 │                                                          │
-│  ┌──────────┐  before_tool_call  ┌───────────────────┐   │
-│  │ Agent/LLM│ ────────────────→  │  pic-gate hook    │   │
-│  │ tool call│                    └────────┬──────────┘   │
+│  ┌──────────┐  before_tool_call   ┌───────────────────┐  │
+│  │ Agent/LLM│ ────────────────→   │  pic-gate hook    │  │
+│  │ tool call│                     └────────┬──────────┘  │
 │  └──────────┘                              │ HTTP        │
 │                                            │             │
 │  ┌───────────────────┐  tool_result_persist│             │
-│  │  pic-audit hook    │ ←─ (after exec)    │             │
+│  │  pic-audit hook   │ ←─ (after exec)     │             │
 │  └───────────────────┘                     │             │
 │                                            │             │
 │  ┌───────────────────┐  before_agent_start │             │
-│  │  pic-init hook     │ ── (session start) │             │
+│  │  pic-init hook    │ ── (session start)  │             │
 │  └───────────────────┘                     │             │
 └────────────────────────────────────────────┼─────────────┘
                                              │
@@ -191,16 +191,21 @@ impact classifications:
 
 ```json
 {
-  "tool_impact": {
-    "payments_send": ["MONEY"],
-    "delete_account": ["IRREVERSIBLE", "PRIVACY"],
-    "read_file": []
-  }
+  "impact_by_tool": {
+    "payments_send": "money",
+    "customer_export": "privacy",
+    "delete_account": "irreversible"
+  },
+  "require_pic_for_impacts": ["money", "privacy", "irreversible"],
+  "require_evidence_for_impacts": ["money", "privacy", "irreversible"]
 }
 ```
 
-Tools mapped to high-impact classes (`MONEY`, `IRREVERSIBLE`, `PRIVACY`)
-require a valid `__pic` proposal. Tools with empty impact arrays pass through
+- `impact_by_tool`: maps tool names to impact class strings (lowercase)
+- `require_pic_for_impacts`: which impact classes require a valid `__pic` proposal
+- `require_evidence_for_impacts`: which impact classes require verified evidence
+
+Tools not in `impact_by_tool` or mapped to unlisted impacts pass through
 without PIC verification.
 
 ---

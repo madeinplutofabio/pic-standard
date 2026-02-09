@@ -12,5 +12,7 @@ import path from "path";
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 export default function activate(api: PluginAPI): void {
-    registerPluginHooksFromDir(api, path.join(__dirname, "hooks"));
+    // Point to source hooks/ directory (not dist/hooks/) so HOOK.md files are found.
+    // At runtime __dirname is dist/, so we go up one level to reach hooks/.
+    registerPluginHooksFromDir(api, path.join(__dirname, "..", "hooks"));
 }

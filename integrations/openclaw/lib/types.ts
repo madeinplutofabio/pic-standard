@@ -36,19 +36,23 @@ export interface PICVerifyRequest {
     tool_args: Record<string, unknown>;
 }
 
-/** Response from POST /verify. Always 200 — decision is in `allowed`. */
-export interface PICVerifyResponse {
-    allowed: boolean;
-    error?: PICError;
-    eval_ms: number;
-}
-
 /** Structured error returned when allowed === false. */
 export interface PICError {
     code: PICErrorCode;
     message: string;
     details?: Record<string, unknown>; // only present when PIC_DEBUG=1
 }
+
+/**
+ * Response from POST /verify. Always 200 — decision is in `allowed`.
+ *
+ * Modeled as a discriminated union to match the wire format:
+ * - allowed: true  → error: null
+ * - allowed: false → error: PICError
+ */
+export type PICVerifyResponse =
+    | { allowed: true; error: null; eval_ms: number }
+    | { allowed: false; error: PICError; eval_ms: number };
 
 // -----------------------------------------------------------------
 // Plugin configuration
@@ -62,8 +66,8 @@ export interface PICPluginConfig {
     /** HTTP timeout in milliseconds (default: 500). */
     bridge_timeout_ms: number;
 
-    /** Log level: "debug" | "info" | "warn" | "error" (default: "info"). */
-    log_level: "debug" | "info" | "warn" | "error";
+    /** Log level: "debug" | "info" | "warn" (default: "info"). */
+    log_level: "debug" | "info" | "warn";
 }
 
 /** Sensible defaults matching PICEvaluateLimits on the Python side. */

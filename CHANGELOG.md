@@ -5,6 +5,32 @@ All notable changes to this project will be documented in this file.
 This project follows Semantic Versioning:
 https://semver.org/
 
+## [0.5.2] - 2026-02-10
+
+### Fixed (OpenClaw Plugin)
+- **Hook discovery path**: Fixed `index.ts` to point to source `hooks/` directory
+  (was loading from `dist/hooks/` which lacks `HOOK.md` files)
+- **PIC_AWARENESS_MESSAGE**: Fixed schema description to match actual PIC/1.0
+  - `impact`: string (not array)
+  - `provenance`: array of `{ id, trust }` (not `{ source, trust_level }`)
+  - `action`: `{ tool, args }` (not `{ tool, params_hash }`)
+  - Added concrete JSON example for agents
+- **PICVerifyResponse type**: Changed to discriminated union matching wire format
+  - `allowed: true` → `error: null`
+  - `allowed: false` → `error: PICError`
+- **log_level type**: Removed `"error"` option (not in manifest, not used)
+- **pic-audit HOOK.md**: Fixed logging description (JSON at debug, summary at info)
+- **Policy docs**: Fixed example to match actual `pic_policy.example.json` schema
+  - `impact_by_tool` (not `tool_impact`)
+  - lowercase strings (not uppercase arrays)
+
+### Added
+- Debug logging for malformed bridge responses in `pic-client.ts`
+- Debug logging for injected awareness message in `pic-init`
+- TODO comments for future telemetry and i18n enhancements
+
+---
+
 ## [0.5.1] - 2026-02-09
 
 ### Fixed (OpenClaw Conformance)

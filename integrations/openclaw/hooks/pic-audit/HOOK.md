@@ -13,7 +13,8 @@ the tool call that just completed.
 
 ## Behavior
 
-- Logs structured JSON audit entries at info level
+- Logs structured JSON at debug level
+- Logs summary line at info level
 - Records: tool name, whether PIC was present, verification result
 - Never modifies the tool result
 - Never throws

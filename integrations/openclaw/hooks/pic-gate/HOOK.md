@@ -35,3 +35,4 @@ Set via `config/pic-plugin.example.json`:
   "bridge_timeout_ms": 500,
   "log_level": "info"
 }
+```
