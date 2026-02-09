@@ -19,11 +19,11 @@ verifies Provenance & Intent Contracts on every tool call before execution.
 │  └──────────┘                              │ HTTP        │
 │                                            │             │
 │  ┌───────────────────┐  tool_result_persist│             │
-│  │  pic-audit hook   │ ←─ (after exec)     │             │
+│  │  pic-audit hook    │ ←─ (after exec)    │             │
 │  └───────────────────┘                     │             │
 │                                            │             │
 │  ┌───────────────────┐  before_agent_start │             │
-│  │  pic-init hook    │ ── (session start)  │             │
+│  │  pic-init hook     │ ── (session start) │             │
 │  └───────────────────┘                     │             │
 └────────────────────────────────────────────┼─────────────┘
                                              │
@@ -82,22 +82,33 @@ curl http://127.0.0.1:7580/health
 
 ### 2. Install the Plugin
 
-Copy (or symlink) the `integrations/openclaw/` directory into your OpenClaw
-plugins folder:
-
 ```bash
+# Option A: OpenClaw CLI (recommended)
 cd integrations/openclaw
 npm install && npm run build
-cp -r . ~/.openclaw/plugins/pic-guard/
+openclaw plugins install .
+
+# Option B: Manual installation
+cd integrations/openclaw
+npm install && npm run build
+cp -r . ~/.openclaw/extensions/pic-guard/
 ```
 
 ### 3. Configure
 
-Copy the example config:
+Plugin config is stored in `~/.openclaw/openclaw.json` under `plugins.entries.pic-guard.config`.
+
+You can configure via CLI:
+
+```bash
+openclaw plugins configure pic-guard --set bridge_url=http://127.0.0.1:7580
+```
+
+Or copy the example config file:
 
 ```bash
 cp integrations/openclaw/config/pic-plugin.example.json \
-   ~/.openclaw/plugins/pic-guard/config/pic-plugin.json
+   ~/.openclaw/extensions/pic-guard/config/pic-plugin.json
 ```
 
 Edit `pic-plugin.json` if you need to change the bridge URL or timeout:

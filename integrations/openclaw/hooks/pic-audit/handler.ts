@@ -72,10 +72,10 @@ function loadConfig(ctx: Record<string, unknown>): PICPluginConfig {
  * @param event - tool execution result event
  * @param ctx   - OpenClaw hook context
  */
-export default async function handler(
+export default function handler(
     event: ToolResultEvent,
     ctx: Record<string, unknown>,
-): Promise<void> {
+): void {
     const config = loadConfig(ctx);
 
     // ── Extract PIC metadata (if present in original params) ───────────

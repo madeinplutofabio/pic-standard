@@ -1,11 +1,50 @@
 {
     "id": "pic-guard",
     "name": "PIC Standard Guard",
-    "version": "0.1.0",
+    "version": "0.5.0",
     "description": "Provenance & Intent Contract verification for OpenClaw tool calls",
-    "hooks": [
-        "hooks/pic-gate",
-        "hooks/pic-init",
-        "hooks/pic-audit"
-    ]
+    "configSchema": {
+        "type": "object",
+        "properties": {
+            "bridge_url": {
+                "type": "string",
+                "default": "http://127.0.0.1:7580",
+                "description": "PIC HTTP bridge endpoint URL"
+            },
+            "bridge_timeout_ms": {
+                "type": "integer",
+                "default": 500,
+                "minimum": 100,
+                "maximum": 5000,
+                "description": "HTTP timeout for bridge verification calls (milliseconds)"
+            },
+            "log_level": {
+                "type": "string",
+                "enum": [
+                    "debug",
+                    "info",
+                    "warn"
+                ],
+                "default": "info",
+                "description": "Logging verbosity level"
+            }
+        },
+        "additionalProperties": false
+    },
+    "uiHints": {
+        "bridge_url": {
+            "label": "Bridge URL",
+            "placeholder": "http://127.0.0.1:7580",
+            "description": "URL of the PIC HTTP bridge (pic-cli serve). Leave blank to use default localhost."
+        },
+        "bridge_timeout_ms": {
+            "label": "Timeout (ms)",
+            "inputType": "number",
+            "description": "Maximum time to wait for bridge response before blocking the tool call (fail-closed)."
+        },
+        "log_level": {
+            "label": "Log Level",
+            "description": "Controls verbosity: debug (all details), info (gate/audit events), warn (errors only)."
+        }
+    }
 }

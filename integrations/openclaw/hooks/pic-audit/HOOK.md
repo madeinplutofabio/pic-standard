@@ -1,6 +1,8 @@
 ---
-events: ["tool_result_persist"]
-priority: 200
+metadata:
+  openclaw:
+    events: ["tool_result_persist"]
+    priority: 200
 ---
 
 # pic-audit — PIC Post-Execution Audit Trail

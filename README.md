@@ -138,7 +138,8 @@ pic-cli serve --port 7580
 # 2. Build and install the plugin
 cd integrations/openclaw
 npm install && npm run build
-cp -r . ~/.openclaw/plugins/pic-guard/
+openclaw plugins install .
+# Or manually: cp -r . ~/.openclaw/extensions/pic-guard/
 ```
 
 - `pic-gate` — verifies proposals before tool execution

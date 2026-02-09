@@ -18,7 +18,8 @@
     "files": [
         "dist",
         "hooks",
-        "config"
+        "config",
+        "openclaw.plugin.json"
     ],
     "keywords": [
         "pic",

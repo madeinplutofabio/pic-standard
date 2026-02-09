@@ -47,15 +47,25 @@ pic-cli serve --port 7580
 ### 2. Build and install the plugin
 
 ```bash
+# Option A: OpenClaw CLI (recommended)
 cd integrations/openclaw
 npm install && npm run build
-cp -r . ~/.openclaw/plugins/pic-guard/
+openclaw plugins install .
+
+# Option B: Manual installation
+cd integrations/openclaw
+npm install && npm run build
+cp -r . ~/.openclaw/extensions/pic-guard/
 ```
 
 ### 3. Configure (optional)
 
+Plugin config is stored in `~/.openclaw/openclaw.json` under `plugins.entries.pic-guard.config`.
+
+You can also copy the example config file:
+
 ```bash
-cp config/pic-plugin.example.json ~/.openclaw/plugins/pic-guard/config/pic-plugin.json
+cp config/pic-plugin.example.json ~/.openclaw/extensions/pic-guard/config/pic-plugin.json
 ```
 
 Default config:

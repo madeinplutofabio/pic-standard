@@ -1,6 +1,8 @@
 ---
-events: ["before_agent_start"]
-priority: 50
+metadata:
+  openclaw:
+    events: ["before_agent_start"]
+    priority: 50
 ---
 
 # pic-init — PIC Awareness Injection

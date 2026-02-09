@@ -1,6 +1,8 @@
 ---
-events: ["before_tool_call"]
-priority: 100
+metadata:
+  openclaw:
+    events: ["before_tool_call"]
+    priority: 100
 ---
 
 # pic-gate — PIC Standard Pre-Execution Gate
