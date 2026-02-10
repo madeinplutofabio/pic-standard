@@ -4,8 +4,8 @@
  * Entry point — registers all hooks from the hooks/ directory.
  */
 
-import type { PluginAPI } from "openclaw";
-import { registerPluginHooksFromDir } from "openclaw";
+import type { PluginAPI } from "openclaw/plugin-sdk";
+import { registerPluginHooksFromDir } from "openclaw/plugin-sdk";
 import { fileURLToPath } from "url";
 import path from "path";
 

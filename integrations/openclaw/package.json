@@ -1,6 +1,6 @@
 {
     "name": "@pic-standard/openclaw-plugin",
-    "version": "0.5.2",
+    "version": "0.5.3",
     "description": "PIC Standard governance plugin for OpenClaw",
     "type": "module",
     "main": "dist/index.js",
@@ -21,6 +21,11 @@
         "config",
         "openclaw.plugin.json"
     ],
+    "openclaw": {
+        "extensions": [
+            "./dist/index.js"
+        ]
+    },
     "keywords": [
         "pic",
         "provenance",

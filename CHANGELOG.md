@@ -5,6 +5,17 @@ All notable changes to this project will be documented in this file.
 This project follows Semantic Versioning:
 https://semver.org/
 
+## [0.5.3] - 2026-02-10
+
+### Fixed (OpenClaw Plugin)
+- **Docs**: Removed fictional `openclaw plugins configure` command from integration guide
+- **Import path**: Changed `openclaw` → `openclaw/plugin-sdk` for correct module resolution
+- **Plugin discovery**: Added `openclaw.extensions` field to `package.json` for `openclaw plugins install`
+- **HOOK.md frontmatter**: Added required `name` and `description` fields to all three hooks
+  - `pic-gate`, `pic-init`, `pic-audit` now display properly in OpenClaw UI/CLI
+
+---
+
 ## [0.5.2] - 2026-02-10
 
 ### Fixed (OpenClaw Plugin)

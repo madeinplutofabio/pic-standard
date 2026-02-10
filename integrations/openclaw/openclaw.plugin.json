@@ -1,7 +1,7 @@
 {
     "id": "pic-guard",
     "name": "PIC Standard Guard",
-    "version": "0.5.2",
+    "version": "0.5.3",
     "description": "Provenance & Intent Contract verification for OpenClaw tool calls",
     "configSchema": {
         "type": "object",

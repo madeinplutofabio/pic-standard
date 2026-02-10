@@ -1,4 +1,6 @@
 ---
+name: pic-init
+description: PIC awareness injection — informs the agent about PIC governance at session start
 metadata:
   openclaw:
     events: ["before_agent_start"]

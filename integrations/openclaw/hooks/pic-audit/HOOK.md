@@ -1,4 +1,6 @@
 ---
+name: pic-audit
+description: PIC post-execution audit trail — logs verification outcomes after tool execution
 metadata:
   openclaw:
     events: ["tool_result_persist"]

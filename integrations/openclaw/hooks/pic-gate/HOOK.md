@@ -1,4 +1,6 @@
 ---
+name: pic-gate
+description: PIC Standard pre-execution gate — verifies tool calls against the PIC bridge
 metadata:
   openclaw:
     events: ["before_tool_call"]
@@ -12,11 +14,36 @@ PIC proposal against the PIC HTTP bridge before execution.
 
 ## Behavior
 
-| Condition | Result |
-|-----------|--------|
-| Bridge returns `allowed: true` | Tool executes; `__pic` stripped from params |
-| Bridge returns `allowed: false` | Tool blocked with `blockReason` |
-| Bridge unreachable / timeout | Tool blocked (fail-closed) |
+|
+ Condition
+|
+ Result
+|
+|
+-----------
+|
+--------
+|
+|
+ Bridge returns
+`allowed: true`
+|
+ Tool executes;
+`__pic`
+ stripped from params
+|
+|
+ Bridge returns
+`allowed: false`
+|
+ Tool blocked with
+`blockReason`
+|
+|
+ Bridge unreachable / timeout
+|
+ Tool blocked (fail-closed)
+|
 
 ## Requirements
 

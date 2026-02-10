@@ -98,13 +98,7 @@ cp -r . ~/.openclaw/extensions/pic-guard/
 
 Plugin config is stored in `~/.openclaw/openclaw.json` under `plugins.entries.pic-guard.config`.
 
-You can configure via CLI:
-
-```bash
-openclaw plugins configure pic-guard --set bridge_url=http://127.0.0.1:7580
-```
-
-Or copy the example config file:
+Copy the example config file:
 
 ```bash
 cp integrations/openclaw/config/pic-plugin.example.json \
