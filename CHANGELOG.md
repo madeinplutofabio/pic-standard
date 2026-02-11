@@ -5,6 +5,22 @@ All notable changes to this project will be documented in this file.
 This project follows Semantic Versioning:
 https://semver.org/
 
+## [0.5.4] - 2026-02-11
+
+### Fixed (OpenClaw Plugin)
+- **CRITICAL: Hook registration**: Changed from `api.registerHook()` to `api.on()` to use
+  OpenClaw's typed hook system. The old method registered to the internal hooks system
+  which requires a config flag and uses different trigger paths. The `api.on()` method
+  registers to `typedHooks` which the hook runner actually uses for `before_tool_call`.
+- **Type stub**: Added `api.on()` method and `PluginHookName` type union
+- **Package name**: Changed from `@pic-standard/openclaw-plugin` to `pic-guard`
+
+### Changed
+- Hook handlers now use typed hook registration instead of internal hook system
+- Removed `name` from hook options (not required for `api.on()`)
+
+---
+
 ## [0.5.3] - 2026-02-10
 
 ### Fixed (OpenClaw Plugin)

@@ -223,6 +223,33 @@ at the platform level.
 
 ## Troubleshooting
 
+### Duplicate plugin installation
+
+OpenClaw loads plugins from **two locations** in priority order:
+1. **Global**: `~/.openclaw/extensions/` (takes precedence)
+2. **Stock/project**: `<project>/extensions/`
+
+If you installed the plugin globally and are testing a local modification, the global
+copy runs even if you modify the project copy.
+
+**Fix:** Remove the global installation to use the project copy:
+```bash
+rm -rf ~/.openclaw/extensions/pic-guard
+```
+
+### Policy file not found
+
+The bridge loads policy from the current working directory by default. To specify
+a custom location:
+```bash
+# Set PIC_POLICY_PATH environment variable
+export PIC_POLICY_PATH=/path/to/pic_policy.json
+pic-cli serve --port 7580
+
+# Or use --repo-root to set the base directory
+pic-cli serve --port 7580 --repo-root /path/to/project
+```
+
 ### Bridge unreachable — all tool calls blocked
 
 Check that the bridge is running:

@@ -16,6 +16,20 @@ The plugin uses three hooks to gate, contextualize, and audit tool calls:
 All verification happens via the **PIC HTTP bridge** — a Python stdlib server
 that wraps the existing `evaluate_pic_for_tool_call()` pipeline.
 
+## Developer Notes
+
+### Hook Registration: `api.on()` vs `api.registerHook()`
+
+OpenClaw has **two hook systems** — using the wrong one causes hooks to silently not fire:
+
+| Method | System | Used For | Config Required |
+|--------|--------|----------|-----------------|
+| `api.on()` | Typed hooks | Lifecycle events (`before_tool_call`, etc.) | No |
+| `api.registerHook()` | Internal hooks | Custom events (`command:new`, etc.) | Yes (`hooks.internal.enabled`) |
+
+**Always use `api.on()` for lifecycle hooks.** The hook runner that wraps tool calls
+uses the typed hooks system, not the internal hooks system.
+
 ## Prerequisites
 
 - OpenClaw ≥ v2026.2.1
