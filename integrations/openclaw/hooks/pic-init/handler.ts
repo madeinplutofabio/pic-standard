@@ -3,9 +3,8 @@
  *
  * Hook: before_agent_start (priority 50)
  *
- * Pushes a system-level message into the session that informs the agent
- * about PIC governance requirements, so it includes __pic proposals in
- * high-impact tool calls.
+ * Returns a prependContext string that informs the agent about PIC governance
+ * requirements, so it includes __pic proposals in high-impact tool calls.
  *
  * Also performs an early health check against the PIC bridge to surface
  * connectivity issues at session start rather than at first tool call.
@@ -13,9 +12,6 @@
 
 import type { PICPluginConfig } from "../../lib/types.js";
 import { DEFAULT_CONFIG } from "../../lib/types.js";
-
-// TODO: Future enhancement — make awareness message configurable via plugin
-// config or environment variable for i18n or custom agent instructions.
 
 const PIC_AWARENESS_MESSAGE = `\
 [PIC Standard] This session is governed by Provenance & Intent Contracts.
@@ -41,67 +37,68 @@ Tool calls without valid __pic proposals will be BLOCKED for high-impact
 operations. Low-impact tools may proceed without __pic.`;
 
 /**
- * Load plugin config from the OpenClaw plugin context.
+ * Resolve plugin config from captured pluginConfig (closure from register()).
  */
-function loadConfig(ctx: Record<string, unknown>): PICPluginConfig {
-    const pluginCfg = (ctx?.pluginConfig ?? {}) as Partial<PICPluginConfig>;
+function resolveConfig(pluginConfig: Record<string, unknown>): PICPluginConfig {
     return {
-        bridge_url: pluginCfg.bridge_url ?? DEFAULT_CONFIG.bridge_url,
+        bridge_url:
+            typeof pluginConfig.bridge_url === "string"
+                ? pluginConfig.bridge_url
+                : DEFAULT_CONFIG.bridge_url,
         bridge_timeout_ms:
-            pluginCfg.bridge_timeout_ms ?? DEFAULT_CONFIG.bridge_timeout_ms,
-        log_level: pluginCfg.log_level ?? DEFAULT_CONFIG.log_level,
+            typeof pluginConfig.bridge_timeout_ms === "number"
+                ? pluginConfig.bridge_timeout_ms
+                : DEFAULT_CONFIG.bridge_timeout_ms,
+        log_level:
+            pluginConfig.log_level === "debug" || pluginConfig.log_level === "info" || pluginConfig.log_level === "warn"
+                ? pluginConfig.log_level
+                : DEFAULT_CONFIG.log_level,
     };
 }
 
 /**
- * before_agent_start handler.
- *
- * @param event - { messages: string[] } — push strings to inject context
- * @param ctx   - OpenClaw hook context
+ * Factory: creates the before_agent_start handler with captured plugin config.
  */
-export default async function handler(
-    event: { messages: string[] },
-    ctx: Record<string, unknown>,
-): Promise<void> {
-    const config = loadConfig(ctx);
+export function createPicInitHandler(
+    pluginConfig: Record<string, unknown>,
+): (event: { prompt: string; messages?: unknown[] }, ctx: Record<string, unknown>) => Promise<{ prependContext?: string }> {
+    return async function handler(
+        _event: { prompt: string; messages?: unknown[] },
+        _ctx: Record<string, unknown>,
+    ): Promise<{ prependContext?: string }> {
+        const config = resolveConfig(pluginConfig);
 
-    // ── Inject PIC awareness ───────────────────────────────────────────
-    event.messages.push(PIC_AWARENESS_MESSAGE);
-
-    if (config.log_level === "debug") {
-        console.debug("[pic-init] Injected awareness message:", PIC_AWARENESS_MESSAGE);
-    }
-
-    // ── Early health check (best-effort, never blocks) ─────────────────
-    const controller = new AbortController();
-    const timeout = setTimeout(
-        () => controller.abort(),
-        config.bridge_timeout_ms,
-    );
-
-    try {
-        const resp = await fetch(`${config.bridge_url}/health`, {
-            signal: controller.signal,
-        });
-
-        if (!resp.ok) {
-            console.warn(
-                `[pic-init] PIC bridge health check failed: HTTP ${resp.status}`,
-            );
-        } else if (config.log_level === "debug") {
-            console.debug("[pic-init] PIC bridge is healthy");
+        if (config.log_level === "debug") {
+            console.debug("[pic-init] Injected awareness message:", PIC_AWARENESS_MESSAGE);
         }
-    } catch {
-        console.warn(
-            `[pic-init] PIC bridge unreachable at ${config.bridge_url} — ` +
-            "tool calls will be blocked (fail-closed) until the bridge is started.",
-        );
-    } finally {
-        clearTimeout(timeout);
-    }
 
-    if (config.log_level === "debug" || config.log_level === "info") {
-        console.log("[pic-init] PIC awareness injected into session");
-    }
+        // ── Early health check (best-effort, never blocks) ─────────────────
+        const controller = new AbortController();
+        const timeout = setTimeout(() => controller.abort(), config.bridge_timeout_ms);
+
+        try {
+            const resp = await fetch(`${config.bridge_url}/health`, {
+                signal: controller.signal,
+            });
+
+            if (!resp.ok) {
+                console.warn(`[pic-init] PIC bridge health check failed: HTTP ${resp.status}`);
+            } else if (config.log_level === "debug") {
+                console.debug("[pic-init] PIC bridge is healthy");
+            }
+        } catch {
+            console.warn(
+                `[pic-init] PIC bridge unreachable at ${config.bridge_url} — ` +
+                "tool calls will be blocked (fail-closed) until the bridge is started.",
+            );
+        } finally {
+            clearTimeout(timeout);
+        }
+
+        if (config.log_level === "debug" || config.log_level === "info") {
+            console.log("[pic-init] PIC awareness injected into session");
+        }
+
+        return { prependContext: PIC_AWARENESS_MESSAGE };
+    };
 }
-

@@ -6,8 +6,8 @@
  * returns { allowed: false } — never throws.
  */
 
-import type { PICErrorCode, PICError, PICVerifyResponse } from "./types.js";
-import { PICVerifyRequest, PICPluginConfig, DEFAULT_CONFIG } from "./types.js";
+import type { PICErrorCode, PICError, PICVerifyResponse, PICVerifyRequest, PICPluginConfig } from "./types.js";
+import { DEFAULT_CONFIG } from "./types.js";
 
 /** Valid PIC error codes for runtime validation. */
 const VALID_ERROR_CODES: readonly PICErrorCode[] = [

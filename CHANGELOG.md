@@ -5,6 +5,27 @@ All notable changes to this project will be documented in this file.
 This project follows Semantic Versioning:
 https://semver.org/
 
+## [0.5.5] - 2026-02-18
+
+### Fixed (OpenClaw Plugin — PR #14704 Review)
+- **CRITICAL: pic-init hook API**: Changed from mutating `event.messages.push()` to returning
+  `{ prependContext: string }` — the correct `before_agent_start` return type
+- **CRITICAL: pic-audit event shape**: Fixed to match real `tool_result_persist` event
+  `{ toolName?, toolCallId?, message, isSynthetic? }` instead of fictional
+  `{ toolName, params, result, error, durationMs }`
+- **CRITICAL: Config loading**: All 3 handlers now receive `pluginConfig` via closure
+  from `register()` instead of reading `ctx.pluginConfig` (which doesn't exist in
+  hook contexts). Config was silently falling back to defaults.
+- **Type-only imports**: Split `import type` from value imports in `pic-client.ts`
+- **Test exclusion**: Added `**/*.test.ts` to tsconfig `exclude` (both repos)
+- **package-lock.json**: Removed from OpenClaw repo (pnpm workspace uses pnpm-lock.yaml)
+
+### Changed
+- All handlers refactored from `export default function handler()` to factory pattern:
+  `export function createPicXxxHandler(pluginConfig)` returning a closure handler
+
+---
+
 ## [0.5.4] - 2026-02-11
 
 ### Fixed (OpenClaw Plugin)

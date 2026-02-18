@@ -3,39 +3,38 @@
  *
  * Hook: tool_result_persist (priority 200)
  *
- * Fires after a tool call completes. Logs a structured audit record
- * capturing the PIC governance outcome. This provides an audit trail
- * for compliance and debugging.
+ * Fires after a tool call completes. Logs a structured audit record.
+ * This provides an audit trail for compliance and debugging.
  *
  * This hook is read-only — it never modifies the tool result or blocks
  * execution. It runs at priority 200 (after all functional hooks).
  *
- * LIMITATION: The pic-gate hook strips __pic from params BEFORE execution.
- * Whether __pic is visible here depends on OpenClaw's event propagation.
- * If pic_present shows false for a tool that was gated, it means OpenClaw
- * passed the modified (stripped) params to the persist event.
+ * IMPORTANT: This hook is SYNCHRONOUS ONLY — async handlers are rejected
+ * by the OpenClaw hook runner.
+ *
+ * LIMITATION: The real tool_result_persist event contains
+ * { toolName?, toolCallId?, message, isSynthetic? } — it does NOT include
+ * params or __pic metadata (pic-gate strips __pic before execution, and
+ * the persist event receives the result message, not the original call).
  */
 
 import type { PICPluginConfig } from "../../lib/types.js";
 import { DEFAULT_CONFIG } from "../../lib/types.js";
 
-/** Shape of the tool_result_persist event. */
-interface ToolResultEvent {
-    toolName: string;
-    params: Record<string, unknown>;
-    result: unknown;
-    error?: string;
-    durationMs?: number;
+/** Real shape of tool_result_persist event (from OpenClaw src/plugins/types.ts). */
+interface ToolResultPersistEvent {
+    toolName?: string;
+    toolCallId?: string;
+    message: Record<string, unknown>;
+    isSynthetic?: boolean;
 }
 
-/** Trust levels per proposal_schema.json. */
-type TrustLevel = "trusted" | "semi_trusted" | "untrusted";
-
-/** Provenance entry per proposal_schema.json. */
-interface ProvenanceEntry {
-    id: string;
-    trust: TrustLevel;
-    source?: string;
+/** Real shape of tool_result_persist context. */
+interface ToolResultPersistContext {
+    agentId?: string;
+    sessionKey?: string;
+    toolName?: string;
+    toolCallId?: string;
 }
 
 /** Structured audit entry written to console. */
@@ -43,76 +42,60 @@ interface PICAuditEntry {
     timestamp: string;
     event: "tool_result_persist";
     tool: string;
-    /** Whether __pic was present in params at persist time (may be stripped by pic-gate). */
-    pic_in_params: boolean;
-    pic_intent?: string;
-    pic_impact?: unknown;
-    /** Trust level from the FIRST provenance entry (primary source). */
-    pic_trust_level?: TrustLevel;
-    tool_error: boolean;
-    duration_ms?: number;
+    toolCallId?: string;
+    isSynthetic: boolean;
 }
 
 /**
- * Load plugin config from the OpenClaw plugin context.
+ * Resolve plugin config from captured pluginConfig (closure from register()).
  */
-function loadConfig(ctx: Record<string, unknown>): PICPluginConfig {
-    const pluginCfg = (ctx?.pluginConfig ?? {}) as Partial<PICPluginConfig>;
+function resolveConfig(pluginConfig: Record<string, unknown>): PICPluginConfig {
     return {
-        bridge_url: pluginCfg.bridge_url ?? DEFAULT_CONFIG.bridge_url,
+        bridge_url:
+            typeof pluginConfig.bridge_url === "string"
+                ? pluginConfig.bridge_url
+                : DEFAULT_CONFIG.bridge_url,
         bridge_timeout_ms:
-            pluginCfg.bridge_timeout_ms ?? DEFAULT_CONFIG.bridge_timeout_ms,
-        log_level: pluginCfg.log_level ?? DEFAULT_CONFIG.log_level,
+            typeof pluginConfig.bridge_timeout_ms === "number"
+                ? pluginConfig.bridge_timeout_ms
+                : DEFAULT_CONFIG.bridge_timeout_ms,
+        log_level:
+            pluginConfig.log_level === "debug" || pluginConfig.log_level === "info" || pluginConfig.log_level === "warn"
+                ? pluginConfig.log_level
+                : DEFAULT_CONFIG.log_level,
     };
 }
 
 /**
- * tool_result_persist handler.
- *
- * @param event - tool execution result event
- * @param ctx   - OpenClaw hook context
+ * Factory: creates the tool_result_persist handler with captured plugin config.
  */
-export default function handler(
-    event: ToolResultEvent,
-    ctx: Record<string, unknown>,
-): void {
-    const config = loadConfig(ctx);
+export function createPicAuditHandler(
+    pluginConfig: Record<string, unknown>,
+): (event: ToolResultPersistEvent, ctx: ToolResultPersistContext) => void {
+    return function handler(
+        event: ToolResultPersistEvent,
+        ctx: ToolResultPersistContext,
+    ): void {
+        const config = resolveConfig(pluginConfig);
 
-    // ── Extract PIC metadata (if present in original params) ───────────
-    // Note: pic-gate strips __pic before execution. Whether this event
-    // receives original or modified params depends on OpenClaw's pipeline.
-    const pic = event.params?.__pic as
-        | {
-            intent?: string;
-            impact?: unknown;
-            provenance?: ProvenanceEntry[];
+        const toolName = event.toolName ?? ctx.toolName ?? "unknown";
+
+        const entry: PICAuditEntry = {
+            timestamp: new Date().toISOString(),
+            event: "tool_result_persist",
+            tool: toolName,
+            toolCallId: event.toolCallId ?? ctx.toolCallId,
+            isSynthetic: event.isSynthetic ?? false,
+        };
+
+        // ── Log ────────────────────────────────────────────────────────────
+        if (config.log_level === "debug") {
+            console.debug(`[pic-audit] ${JSON.stringify(entry)}`);
+        } else if (config.log_level === "info") {
+            console.log(
+                `[pic-audit] tool=${entry.tool} callId=${entry.toolCallId ?? "n/a"} ` +
+                `synthetic=${entry.isSynthetic}`,
+            );
         }
-        | undefined;
-
-    const entry: PICAuditEntry = {
-        timestamp: new Date().toISOString(),
-        event: "tool_result_persist",
-        tool: event.toolName,
-        pic_in_params: pic !== undefined,
-        tool_error: event.error !== undefined,
-        duration_ms: event.durationMs,
     };
-
-    // ── Enrich with PIC details when available ─────────────────────────
-    if (pic) {
-        entry.pic_intent = pic.intent;
-        entry.pic_impact = pic.impact;
-        // Get trust from first provenance entry (primary source)
-        entry.pic_trust_level = pic.provenance?.[0]?.trust;
-    }
-
-    // ── Log ────────────────────────────────────────────────────────────
-    if (config.log_level === "debug") {
-        console.debug(`[pic-audit] ${JSON.stringify(entry)}`);
-    } else if (config.log_level === "info") {
-        console.log(
-            `[pic-audit] tool=${entry.tool} pic_in_params=${entry.pic_in_params} ` +
-            `error=${entry.tool_error} duration_ms=${entry.duration_ms ?? "n/a"}`,
-        );
-    }
 }
