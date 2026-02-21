@@ -1,0 +1,23 @@
+# RFC-0001 Spec Fingerprint Manifest
+# Generated: 2026-02-21
+# Verify (from repo root): sha256sum -c docs/RFC-0001.SHA256
+#
+# This file anchors RFC-0001 to the canonical source artifacts
+# at the time of publication. The RFC itself is also anchored by
+# the Git commit hash that introduces it.
+
+# --- RFC document ---
+29cc941e553869d05a24d94f5036582e844747caef416e870257955da268e5a1  docs/RFC-0001-pic-standard.md
+
+# --- PIC/1.0 schema ---
+910ab13433875b7824449c387a6652eff1f61a0b597b3ac0dd86537d0734e89a  sdk-python/pic_standard/schemas/proposal_schema.json
+
+# --- Core enforcement modules ---
+f4c0dc74ce367b27e111c8f28cf9ce0686f6c40dedf13cd52a288f00363ea2ed  sdk-python/pic_standard/verifier.py
+b14b600a8d1738c616285a39c14bba14dbe0d9f52763e870b5c96b77b2b2caec  sdk-python/pic_standard/evidence.py
+8a572fa527f7f592c65166fea02e5b580144af5a2568bd89b8385b360fdfae9f  sdk-python/pic_standard/keyring.py
+e94d2da396283ffc2078ae7a5ee6613c23311b511b6dc1feefbbe47f084d7376  sdk-python/pic_standard/integrations/mcp_pic_guard.py
+
+# --- Context anchors (version + history) ---
+b3974a038aae75454a9f614811872dc3714250c616e89bbf033b6b35615054be  pyproject.toml
+3dc2100397c008a2b0deab16821cfa5b49f6d5fc53f565e599f00c584c5696b3  CHANGELOG.md

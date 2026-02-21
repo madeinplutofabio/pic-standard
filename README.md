@@ -24,6 +24,7 @@ PIC is a lightweight, local-first protocol that forces AI agents to **prove** ev
 - [Evidence Verification](#evidence-verification)
 - [Keyring (Trusted Signers)](#keyring-trusted-signers)
 - [Integrations](#integrations)
+- [RFC & Prior Art](#rfc--prior-art)
 - [Roadmap](#roadmap)
 - [Contributing](#contributing)
 
@@ -199,6 +200,16 @@ pic-cli serve --port 3100
 
 ---
 
+## RFC & Prior Art
+
+[**RFC-0001: PIC/1.0 — Provenance & Intent Contracts for AI Agent Action Safety**](docs/RFC-0001-pic-standard.md)
+
+Formal specification covering scope, threat model, security properties, conformance levels, and prior art differentiation. Published as a defensive publication with a SHA-256 fingerprint manifest: [`docs/RFC-0001.SHA256`](docs/RFC-0001.SHA256).
+
+Verify locally: `sha256sum -c docs/RFC-0001.SHA256`
+
+---
+
 ## Roadmap
 
 - [x] Phase 1: Standardize Impact Classes (money, privacy, irreversible, ...)
@@ -223,9 +234,6 @@ If you find PIC useful, please consider giving us a star on GitHub: it helps att
 
 Issues & ideas: [GitHub Issues](https://github.com/madeinplutofabio/pic-standard/issues)
 
-Maintained by [![Linkedin](https://i.sstatic.net/gVE0j.png) @fmsalvadori](https://www.linkedin.com/in/fmsalvadori/)
-&nbsp;
-[![GitHub](https://i.sstatic.net/tskMh.png) MadeInPluto](https://github.com/madeinplutofabio)
 Maintained by [![Linkedin](https://i.sstatic.net/gVE0j.png) @fmsalvadori](https://www.linkedin.com/in/fmsalvadori/)
 &nbsp;
 [![GitHub](https://i.sstatic.net/tskMh.png) MadeInPluto](https://github.com/madeinplutofabio)

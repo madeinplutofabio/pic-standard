@@ -5,6 +5,19 @@ All notable changes to this project will be documented in this file.
 This project follows Semantic Versioning:
 https://semver.org/
 
+## [0.6.0] - 2026-02-19
+
+### Added
+- **Cordum integration**: Pack for workflow-level PIC verification gating
+  - Worker topic: `job.pic-standard.verify`
+  - Workflow routing: `proceed` / `fail` / `require_approval`
+  - Fail-closed HTTP bridge client (Go)
+  - Pack source: `cordum-io/cordum-packs` → `packs/pic-standard/`
+- `integrations/cordum/` — README, example policy config
+- `docs/cordum-integration.md` — full integration guide with architecture diagram
+
+---
+
 ## [0.5.5] - 2026-02-18
 
 ### Fixed (OpenClaw Plugin — PR #14704 Review)
