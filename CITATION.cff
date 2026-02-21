@@ -1,0 +1,29 @@
+cff-version: 1.2.0
+title: "PIC Standard: Provenance & Intent Contracts for AI Agent Action Safety"
+message: "If you use PIC Standard in your research or product, please cite it."
+type: software
+
+authors:
+  - given-names: Fabio Marcello
+    family-names: Salvadori
+    # orcid: "https://orcid.org/0000-0000-0000-0000"  # add if you have one
+
+repository-code: "https://github.com/madeinplutofabio/pic-standard"
+url: "https://github.com/madeinplutofabio/pic-standard"
+repository-artifact: "https://pypi.org/project/pic-standard/"
+license: "Apache-2.0"
+
+version: "0.5.5"
+date-released: "2026-02-18"
+
+identifiers:
+  - type: doi
+    value: "10.5281/zenodo.18725563"
+
+keywords:
+  - ai-safety
+  - ai-agents
+  - provenance
+  - tool-calling
+  - fail-closed
+  - evidence-verification
