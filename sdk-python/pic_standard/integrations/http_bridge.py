@@ -15,6 +15,9 @@ POST /verify
 GET  /health
     200:  {"status": "ok"}
 
+GET  /v1/version
+    200:  {"pic_version": "1.0", "package_version": "0.6.1"}
+
 Design notes
 ------------
 * stdlib only – no Flask / FastAPI dependency.
@@ -30,6 +33,7 @@ import json
 import logging
 import os
 import time
+from importlib import metadata
 from http.server import HTTPServer, BaseHTTPRequestHandler
 from pathlib import Path
 from typing import Any, Dict, Optional
@@ -45,6 +49,8 @@ from pic_standard.policy import PICPolicy
 
 log = logging.getLogger("pic_standard.http_bridge")
 
+PIC_VERSION = "1.0"
+
 # Maximum request body size (1MB) to prevent memory exhaustion attacks
 MAX_REQUEST_BYTES = 1024 * 1024
 
@@ -54,6 +60,12 @@ READ_TIMEOUT_SECS = 5.0
 # ------------------------------------------------------------------
 # Request / response helpers
 # ------------------------------------------------------------------
+
+def _get_package_version() -> str:
+    try:
+        return metadata.version("pic-standard")
+    except metadata.PackageNotFoundError:
+        return "unknown"
 
 def _json_response(handler: BaseHTTPRequestHandler, status: int, body: Dict[str, Any]) -> None:
     """Write a JSON response with proper headers."""
@@ -214,6 +226,12 @@ class PICBridgeHandler(BaseHTTPRequestHandler):
     def do_GET(self) -> None:
         if self.path.rstrip("/") == "/health":
             _json_response(self, 200, {"status": "ok"})
+            return
+        if self.path.rstrip("/") == "/v1/version":
+            _json_response(self, 200, {
+                "pic_version": PIC_VERSION,
+                "package_version": _get_package_version(),
+            })
             return
         _json_response(self, 404, {"error": "Not found"})
 

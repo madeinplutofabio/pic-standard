@@ -173,6 +173,13 @@ def test_bridge_health_endpoint(bridge_url):
     assert result == {"status": "ok"}
 
 
+def test_bridge_version_endpoint(bridge_url):
+    result = _http_get(f"{bridge_url}/v1/version")
+    assert result["pic_version"] == "1.0"
+    assert isinstance(result["package_version"], str)
+    assert result["package_version"]
+
+
 def test_bridge_http_allows_trusted(bridge_url):
     result = _http_post(
         f"{bridge_url}/verify",
