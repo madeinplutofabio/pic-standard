@@ -15,6 +15,9 @@ POST /verify
 GET  /health
     200:  {"status": "ok"}
 
+GET  /v1/version
+    200:  {"pic_version": "1.0", "package_version": "0.6.1"}
+
 Design notes
 ------------
 * stdlib only – no Flask / FastAPI dependency.
@@ -212,8 +215,15 @@ class PICBridgeHandler(BaseHTTPRequestHandler):
         log.debug(fmt, *args)
 
     def do_GET(self) -> None:
-        if self.path.rstrip("/") == "/health":
+        path = self.path.rstrip("/")
+        if path == "/health":
             _json_response(self, 200, {"status": "ok"})
+            return
+        if path == "/v1/version":
+            _json_response(self, 200, {
+                "pic_version": "1.0",
+                "package_version": "0.6.1"
+            })
             return
         _json_response(self, 404, {"error": "Not found"})
 
