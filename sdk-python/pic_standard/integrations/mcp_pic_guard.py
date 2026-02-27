@@ -3,33 +3,19 @@ from __future__ import annotations
 import asyncio
 import json
 import logging
-import os
 import time
-from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Awaitable, Callable, Dict, Optional, Tuple
 
-from importlib import resources
-from jsonschema import ValidationError as JSValidationError
-from jsonschema import validate as js_validate
-
-from pic_standard.errors import PICError, PICErrorCode
+from pic_standard.errors import PICError, PICErrorCode, _debug_enabled
+from pic_standard.pipeline import (
+    PICEvaluateLimits,
+    PipelineOptions,
+    verify_proposal,
+)
 from pic_standard.policy import PICPolicy
-from pic_standard.verifier import ActionProposal
-
-# v0.3+ evidence (optional)
-try:
-    from pic_standard.evidence import EvidenceSystem, apply_verified_ids_to_provenance
-except Exception:  # pragma: no cover
-    EvidenceSystem = None  # type: ignore
-    apply_verified_ids_to_provenance = None  # type: ignore
 
 log = logging.getLogger("pic_standard.mcp")
-
-
-def _debug_enabled() -> bool:
-    v = (os.getenv("PIC_DEBUG") or "").strip().lower()
-    return v in {"1", "true", "yes", "on"}
 
 
 def _mcp_error_payload(err: PICError) -> Dict[str, Any]:
@@ -58,99 +44,6 @@ def _wrap_success(result: Any) -> Dict[str, Any]:
     if _is_pic_envelope(result):
         return result  # already wrapped
     return {"isError": False, "result": result}
-
-
-@dataclass
-class PICEvaluateLimits:
-    """Hard limits to avoid abuse / resource exhaustion."""
-    max_proposal_bytes: int = 64_000         # 64KB JSON
-    max_provenance_items: int = 64
-    max_claims: int = 64
-    max_evidence_items: int = 64
-    max_eval_ms: int = 500                  # policy evaluation budget (schema + verifier + evidence)
-
-
-def _load_packaged_schema() -> Dict[str, Any]:
-    schema_text = (
-        resources.files("pic_standard")
-        .joinpath("schemas/proposal_schema.json")
-        .read_text(encoding="utf-8")
-    )
-    return json.loads(schema_text)
-
-
-def _proposal_size_bytes(proposal: Dict[str, Any]) -> int:
-    return len(json.dumps(proposal, ensure_ascii=False).encode("utf-8"))
-
-
-def _enforce_limits(proposal: Dict[str, Any], limits: PICEvaluateLimits) -> None:
-    size = _proposal_size_bytes(proposal)
-    if size > limits.max_proposal_bytes:
-        raise PICError(
-            code=PICErrorCode.LIMIT_EXCEEDED,
-            message="PIC proposal exceeds max size",
-            details={"max_bytes": limits.max_proposal_bytes, "actual_bytes": size},
-        )
-
-    prov = proposal.get("provenance") or []
-    claims = proposal.get("claims") or []
-    ev = proposal.get("evidence") or []
-
-    if len(prov) > limits.max_provenance_items:
-        raise PICError(
-            PICErrorCode.LIMIT_EXCEEDED,
-            "Too many provenance items",
-            {"max": limits.max_provenance_items, "actual": len(prov)},
-        )
-    if len(claims) > limits.max_claims:
-        raise PICError(
-            PICErrorCode.LIMIT_EXCEEDED,
-            "Too many claims",
-            {"max": limits.max_claims, "actual": len(claims)},
-        )
-    if len(ev) > limits.max_evidence_items:
-        raise PICError(
-            PICErrorCode.LIMIT_EXCEEDED,
-            "Too many evidence items",
-            {"max": limits.max_evidence_items, "actual": len(ev)},
-        )
-
-
-def verify_pic_proposal(proposal: Dict[str, Any]) -> ActionProposal:
-    """
-    Verify PIC proposal:
-      1) JSON Schema validation
-      2) Reference verifier (pydantic + PIC rules)
-
-    NOTE:
-    Tool binding is enforced in integrations via:
-      ActionProposal.verify_with_context(expected_tool=...)
-    """
-    schema = _load_packaged_schema()
-
-    try:
-        js_validate(instance=proposal, schema=schema)
-    except JSValidationError as e:
-        raise PICError(
-            code=PICErrorCode.SCHEMA_INVALID,
-            message=f"PIC schema validation failed: {e.message}",
-        ) from e
-
-    try:
-        ap = ActionProposal(**proposal)
-        return ap
-    except Exception as e:
-        msg = str(e) or "PIC contract violation"
-        if _debug_enabled():
-            raise PICError(
-                code=PICErrorCode.POLICY_VIOLATION,
-                message="PIC contract violation",
-                details={"verifier_error": msg},
-            ) from e
-        raise PICError(
-            code=PICErrorCode.POLICY_VIOLATION,
-            message="PIC contract violation",
-        ) from e
 
 
 def _audit_decision(
@@ -200,9 +93,15 @@ def evaluate_pic_for_tool_call(
     proposal_base_dir: Optional[Path] = None,
     evidence_root_dir: Optional[Path] = None,
     request_id: Optional[str] = None,
-) -> Tuple[Optional[ActionProposal], Dict[str, Any]]:
+) -> Tuple[Optional["ActionProposal"], Dict[str, Any]]:
     """
     Evaluate PIC for a tool call. Fail-closed via PICError.
+
+    MCP-specific wrapper around ``pipeline.verify_proposal()``:
+      - Extracts ``__pic`` from tool_args
+      - Checks if PIC is required by policy (when no proposal present)
+      - Delegates verification to the shared pipeline
+      - Maps PipelineResult back to the (ActionProposal, tool_args) tuple
 
     Returns:
       (action_proposal_or_none, tool_args)
@@ -214,6 +113,7 @@ def evaluate_pic_for_tool_call(
     proposal = tool_args.get("__pic")
     impact_from_policy = policy.impact_by_tool.get(tool_name)
 
+    # MCP-specific: check if PIC proposal is required but missing
     if proposal is None:
         if impact_from_policy and impact_from_policy in policy.require_pic_for_impacts:
             raise PICError(
@@ -232,107 +132,45 @@ def evaluate_pic_for_tool_call(
         )
         return None, tool_args
 
+    # MCP-specific: type check before handing to pipeline
     if not isinstance(proposal, dict):
         raise PICError(
             code=PICErrorCode.INVALID_REQUEST,
             message="PIC proposal must be an object",
         )
 
-    _enforce_limits(proposal, limits)
+    # Delegate to shared pipeline
+    result = verify_proposal(proposal, options=PipelineOptions(
+        tool_name=tool_name,
+        expected_tool=tool_name,
+        policy=policy,
+        limits=limits,
+        verify_evidence=verify_evidence,
+        proposal_base_dir=proposal_base_dir,
+        evidence_root_dir=evidence_root_dir,
+    ))
 
-    # If policy does not define impact, we can still use the proposal's impact
-    proposal_impact = proposal.get("impact")
-    impact = policy.get_tool_impact(tool_name, proposal_impact=proposal_impact)
-
-    # Schema + verifier rules (offline-capable)
-    ap = verify_pic_proposal(proposal)
-
-    # Tool binding is enforced only when runtime context exists (integration boundary)
-    try:
-        ap.verify_with_context(expected_tool=tool_name)
-    except Exception as e:
-        msg = str(e) or "Tool binding mismatch"
-        if _debug_enabled():
-            raise PICError(
-                code=PICErrorCode.TOOL_BINDING_MISMATCH,
-                message="Tool binding mismatch",
-                details={"expected": tool_name, "error": msg},
-            ) from e
-        raise PICError(
-            code=PICErrorCode.TOOL_BINDING_MISMATCH,
-            message="Tool binding mismatch",
-        ) from e
-
-    verified_count = 0
-
-    if verify_evidence:
-        if EvidenceSystem is None:
-            raise PICError(
-                code=PICErrorCode.EVIDENCE_FAILED,
-                message="Evidence verification requested but evidence module is unavailable",
-            )
-
-        if impact and impact in policy.require_evidence_for_impacts:
-            es = EvidenceSystem()  # type: ignore
-            base_dir = proposal_base_dir or Path(".").resolve()
-            root_dir = evidence_root_dir or base_dir
-
-            report = es.verify_all(proposal, base_dir=base_dir, evidence_root_dir=root_dir)  # type: ignore
-
-            if not report.results:
-                raise PICError(
-                    code=PICErrorCode.EVIDENCE_REQUIRED,
-                    message="Evidence required for this impact but no evidence entries were provided",
-                    details={"tool": tool_name, "impact": impact},
-                )
-
-            if not report.ok:
-                failed = [{"id": r.id, "message": r.message} for r in report.results if not r.ok]
-                raise PICError(
-                    code=PICErrorCode.EVIDENCE_FAILED,
-                    message="Evidence verification failed",
-                    details={"failed": failed},
-                )
-
-            verified_count = len(report.verified_ids)
-            upgraded = apply_verified_ids_to_provenance(proposal, report.verified_ids)  # type: ignore
-
-            ap = verify_pic_proposal(upgraded)
-
-            # Enforce binding again on the upgraded proposal
-            try:
-                ap.verify_with_context(expected_tool=tool_name)
-            except Exception as e:
-                msg = str(e) or "Tool binding mismatch"
-                if _debug_enabled():
-                    raise PICError(
-                        code=PICErrorCode.TOOL_BINDING_MISMATCH,
-                        message="Tool binding mismatch",
-                        details={"expected": tool_name, "error": msg},
-                    ) from e
-                raise PICError(
-                    code=PICErrorCode.TOOL_BINDING_MISMATCH,
-                    message="Tool binding mismatch",
-                ) from e
-
-    eval_ms = int((time.perf_counter() - t0) * 1000)
-    if eval_ms > int(limits.max_eval_ms):
-        raise PICError(
-            code=PICErrorCode.LIMIT_EXCEEDED,
-            message="PIC evaluation exceeded time budget",
-            details={"max_eval_ms": int(limits.max_eval_ms), "eval_ms": eval_ms},
+    if not result.ok:
+        # Pipeline returned an error — re-raise as PICError for MCP envelope handling
+        raise result.error or PICError(
+            code=PICErrorCode.INTERNAL_ERROR,
+            message="Pipeline verification failed",
         )
 
     _audit_decision(
         decision="allow",
         tool_name=tool_name,
-        impact=impact,
+        impact=result.impact,
         request_id=request_id,
         proposal_id=proposal.get("id"),
-        verified_evidence_count=verified_count if verify_evidence else None,
-        eval_ms=eval_ms,
+        verified_evidence_count=(
+            len(result.evidence_report.verified_ids)
+            if result.evidence_report and hasattr(result.evidence_report, "verified_ids")
+            else None
+        ),
+        eval_ms=result.eval_ms,
     )
-    return ap, tool_args
+    return result.action_proposal, tool_args
 
 
 def _extract_request_id(kwargs: Dict[str, Any]) -> Optional[str]:
@@ -405,7 +243,7 @@ def guard_mcp_tool(
 
         except Exception as e:
             details = {"exception_type": type(e).__name__, "exception": str(e)} if _debug_enabled() else None
-            pe = PICError(PICErrorCode.POLICY_VIOLATION, "Internal error while enforcing PIC", details=details)
+            pe = PICError(PICErrorCode.INTERNAL_ERROR, "Internal error while enforcing PIC", details=details)
             _audit_decision(
                 decision="block",
                 tool_name=tool_name,
@@ -485,7 +323,7 @@ def guard_mcp_tool_async(
 
         except Exception as e:
             details = {"exception_type": type(e).__name__, "exception": str(e)} if _debug_enabled() else None
-            pe = PICError(PICErrorCode.POLICY_VIOLATION, "Internal error while enforcing PIC", details=details)
+            pe = PICError(PICErrorCode.INTERNAL_ERROR, "Internal error while enforcing PIC", details=details)
             _audit_decision(
                 decision="block",
                 tool_name=tool_name,
@@ -497,3 +335,5 @@ def guard_mcp_tool_async(
             return {"isError": True, "error": _mcp_error_payload(pe)}
 
     return wrapped
+
+

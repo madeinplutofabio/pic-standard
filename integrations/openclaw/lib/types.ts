@@ -3,7 +3,9 @@
  *
  * These mirror the Python-side contracts defined in:
  *   sdk-python/pic_standard/integrations/http_bridge.py
- *   sdk-python/pic_standard/errors.py  (PICErrorCode)
+ *   sdk-python/pic_standard/errors.py         (PICErrorCode)
+ *
+ * Verification logic lives in sdk-python/pic_standard/pipeline.py
  */
 
 // -----------------------------------------------------------------

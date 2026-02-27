@@ -145,9 +145,22 @@ def _read_sandboxed_file(
     return p.read_bytes()
 
 
-def _b64decode(s: str, *, what: str) -> bytes:
-    """Accept standard or urlsafe base64, with/without padding."""
+def _b64decode(s: str, *, what: str, strict: bool = False) -> bytes:
+    """Accept standard or urlsafe base64, with/without padding.
+
+    When ``strict=True`` (Phase 1 canonicalization), require standard
+    RFC 4648 base64 alphabet with correct padding — no lenient fixups.
+    """
     try:
+        if strict:
+            raw = s.strip()
+            if raw != s:
+                raise ValueError(f"Invalid base64 for {what}: leading/trailing whitespace not allowed")
+            if "-" in raw or "_" in raw:
+                raise ValueError(f"Invalid base64 for {what}: URL-safe base64 alphabet not allowed")
+            if len(raw) % 4 != 0:
+                raise ValueError(f"Invalid base64 for {what}: missing/invalid padding")
+            return base64.b64decode(raw, validate=True)
         raw = s.strip().replace("-", "+").replace("_", "/")
         pad = "=" * ((4 - len(raw) % 4) % 4)
         return base64.b64decode(raw + pad, validate=True)

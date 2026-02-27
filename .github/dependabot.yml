@@ -1,0 +1,86 @@
+version: 2
+updates:
+
+  # ── Python (pip) — root pyproject.toml ──────────────────────────
+  - package-ecosystem: "pip"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+    open-pull-requests-limit: 5
+    groups:
+      python-minor-patch:
+        update-types:
+          - "minor"
+          - "patch"
+    ignore:
+      - dependency-name: "*"
+        update-types: ["version-update:semver-major"]
+    commit-message:
+      prefix: "deps(python):"
+    labels:
+      - "dependencies"
+      - "python"
+
+  # ── Python (pip) — sdk-python/requirements*.txt ─────────────────
+  - package-ecosystem: "pip"
+    directory: "/sdk-python"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+    open-pull-requests-limit: 5
+    groups:
+      python-sdk-minor-patch:
+        update-types:
+          - "minor"
+          - "patch"
+    ignore:
+      - dependency-name: "*"
+        update-types: ["version-update:semver-major"]
+    commit-message:
+      prefix: "deps(python-sdk):"
+    labels:
+      - "dependencies"
+      - "python"
+
+  # ── Node.js (npm) — integrations/openclaw/ ──────────────────────
+  - package-ecosystem: "npm"
+    directory: "/integrations/openclaw"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+    open-pull-requests-limit: 5
+    groups:
+      openclaw-minor-patch:
+        update-types:
+          - "minor"
+          - "patch"
+    ignore:
+      - dependency-name: "*"
+        update-types: ["version-update:semver-major"]
+    commit-message:
+      prefix: "deps(openclaw):"
+    labels:
+      - "dependencies"
+      - "typescript"
+
+  # ── GitHub Actions ──────────────────────────────────────────────
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+    open-pull-requests-limit: 5
+    groups:
+      gha-minor-patch:
+        update-types:
+          - "minor"
+          - "patch"
+    ignore:
+      - dependency-name: "*"
+        update-types: ["version-update:semver-major"]
+    commit-message:
+      prefix: "deps(actions):"
+    labels:
+      - "dependencies"
+      - "ci"

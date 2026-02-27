@@ -4,13 +4,13 @@ import argparse
 import json
 import os
 from pathlib import Path
-from importlib import resources
 
 from jsonschema import validate as js_validate, ValidationError
 
-from .verifier import ActionProposal
-from .evidence import EvidenceSystem, apply_verified_ids_to_provenance
+from .evidence import EvidenceSystem
 from .config import load_policy, dump_policy
+from .errors import PICErrorCode
+from .pipeline import PipelineOptions, verify_proposal, _load_packaged_schema
 
 # NEW: keys command
 from .keyring import TrustedKeyRing, KeyRingError
@@ -28,18 +28,9 @@ def load_json(path: Path) -> dict:
         raise SystemExit(f"Invalid JSON in {path}: {e}")
 
 
-def load_packaged_schema() -> dict:
-    schema_text = (
-        resources.files("pic_standard")
-        .joinpath("schemas/proposal_schema.json")
-        .read_text(encoding="utf-8")
-    )
-    return json.loads(schema_text)
-
-
 def cmd_schema(proposal_path: Path) -> int:
     proposal = load_json(proposal_path)
-    schema = load_packaged_schema()
+    schema = _load_packaged_schema()
 
     try:
         js_validate(instance=proposal, schema=schema)
@@ -82,40 +73,36 @@ def cmd_evidence_verify(proposal_path: Path) -> int:
 
 
 def cmd_verify(proposal_path: Path, *, verify_evidence: bool = False) -> int:
+    # Intentionally run schema command first for stable CLI UX / exit-code messaging.
+    # verify_proposal() validates schema again internally (shared pipeline path).
     code = cmd_schema(proposal_path)
     if code != 0:
         return code
 
     proposal = load_json(proposal_path)
 
-    # Optional evidence verification (v0.3+)
-    if verify_evidence:
-        es = EvidenceSystem()
-        report = es.verify_all(proposal, base_dir=proposal_path.parent)
+    result = verify_proposal(proposal, options=PipelineOptions(
+        verify_evidence=verify_evidence,
+        proposal_base_dir=proposal_path.parent,
+        evidence_root_dir=proposal_path.parent,
+    ))
 
-        if not report.results:
-            print("❌ Evidence verification failed")
-            print("No evidence entries found in proposal (expected 'evidence': [...]).")
-            return 4
-
-        if not report.ok:
-            print("❌ Evidence verification failed")
-            for r in report.results:
-                if not r.ok:
-                    print(f"- {r.id}: {r.message}")
-            return 4
-
-        # Upgrade provenance trust based on verified evidence IDs
-        proposal = apply_verified_ids_to_provenance(proposal, report.verified_ids)
-
-    try:
-        ActionProposal(**proposal)
+    if result.ok:
         print("✅ Verifier passed")
         return 0
-    except Exception as e:
-        print("❌ Verifier failed")
-        print(str(e))
-        return 3
+
+    err = result.error
+    if err and err.code == PICErrorCode.SCHEMA_INVALID:
+        print("❌ Schema invalid")
+        print(err.message)
+        return 2
+    if err and err.code in (PICErrorCode.EVIDENCE_REQUIRED, PICErrorCode.EVIDENCE_FAILED):
+        print("❌ Evidence verification failed")
+        print(err.message)
+        return 4
+    print("❌ Verifier failed")
+    print(err.message if err else "Unknown error")
+    return 3
 
 
 def _find_policy_source(repo_root: Path) -> str:

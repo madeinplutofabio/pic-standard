@@ -35,11 +35,10 @@ from pathlib import Path
 from typing import Any, Dict, Optional
 
 from pic_standard.config import load_policy
-from pic_standard.errors import PICError, PICErrorCode
+from pic_standard.errors import PICError, PICErrorCode, _debug_enabled
 from pic_standard.integrations.mcp_pic_guard import (
     PICEvaluateLimits,
     evaluate_pic_for_tool_call,
-    _debug_enabled,
 )
 from pic_standard.policy import PICPolicy
 
