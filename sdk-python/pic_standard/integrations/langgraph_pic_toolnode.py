@@ -1,82 +1,14 @@
 from __future__ import annotations
 
-import json
 from dataclasses import dataclass
-from typing import Any, Dict, Optional
-
-from importlib import resources
-from jsonschema import validate as js_validate, ValidationError
+from typing import Any, Dict
 
 from langchain_core.messages import AIMessage, ToolMessage
 from langchain_core.tools import BaseTool
 
-from pic_standard.verifier import ActionProposal
+from pic_standard.pipeline import PipelineOptions, verify_proposal
 
 PIC_ARG_KEY = "__pic"  # tool_calls[i]["args"]["__pic"] = {... PIC proposal ...}
-
-
-def _load_packaged_schema() -> dict:
-    """Load PIC proposal schema from the installed package data."""
-    schema_text = (
-        resources.files("pic_standard")
-        .joinpath("schemas/proposal_schema.json")
-        .read_text(encoding="utf-8")
-    )
-    return json.loads(schema_text)
-
-
-def _clean_pydantic_error(e: Exception) -> str:
-    """
-    Pydantic wraps validator ValueErrors into a ValidationError with noisy formatting.
-    Extract the real error message for clean UX.
-    """
-    if hasattr(e, "errors"):
-        try:
-            errs = e.errors()
-            if errs and isinstance(errs, list) and "msg" in errs[0]:
-                return errs[0]["msg"]
-        except Exception:
-            pass
-    return str(e)
-
-
-def verify_pic_proposal(
-    proposal: Dict[str, Any],
-    *,
-    expected_tool_name: Optional[str] = None,
-) -> ActionProposal:
-    """
-    Verify proposal in 2 layers (+ context when available):
-      1) JSON Schema validation
-      2) Reference verifier (pydantic + PIC rules)
-
-    Tool binding is enforced ONLY at integration boundaries (LangGraph/MCP),
-    via ActionProposal.verify_with_context(expected_tool=...).
-
-    Raises ValueError with clean messages on failure.
-    """
-    schema = _load_packaged_schema()
-
-    try:
-        js_validate(instance=proposal, schema=schema)
-    except ValidationError as e:
-        raise ValueError(f"PIC schema validation failed: {e.message}") from e
-
-    try:
-        ap = ActionProposal(**proposal)
-    except Exception as e:
-        raise ValueError(f"PIC blocked: {_clean_pydantic_error(e)}") from e
-
-    if expected_tool_name is not None:
-        # Canonical tool binding lives in verifier; integrations provide runtime context.
-        try:
-            ap.verify_with_context(expected_tool=expected_tool_name)
-        except Exception as e:
-            # Keep the message clean and deterministic.
-            msg = str(e) or "tool binding failed"
-            raise ValueError(f"PIC blocked: {msg}") from e
-
-    return ap
 
 
 @dataclass
@@ -138,8 +70,12 @@ class PICToolNode:
                     f"PIC invalid: args['{PIC_ARG_KEY}'] must be a dict (parsed JSON), got {type(proposal)}."
                 )
 
-            # Enforce PIC BEFORE calling the tool (includes tool binding via verify_with_context)
-            verify_pic_proposal(proposal, expected_tool_name=name)
+            # Enforce PIC BEFORE calling the tool (delegates to shared pipeline)
+            result = verify_proposal(proposal, options=PipelineOptions(expected_tool=name))
+            if not result.ok:
+                msg = result.error.message if result.error else "PIC verification failed"
+                code = result.error.code.value if result.error else "PIC_INTERNAL_ERROR"
+                raise ValueError(f"PIC blocked ({code}): {msg}")
 
             # Execute tool
             observation = tool.invoke(args)

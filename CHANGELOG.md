@@ -5,6 +5,44 @@ All notable changes to this project will be documented in this file.
 This project follows Semantic Versioning:
 https://semver.org/
 
+## [0.6.1] - 2026-02-26
+
+### Changed
+- **Shared verification pipeline**: Extracted duplicated verification logic from
+  MCP guard, LangGraph, and CLI into a single `pipeline.py` module with
+  `verify_proposal()` as the one function all consumers delegate to.
+- All three consumers (MCP guard, LangGraph ToolNode, CLI) now delegate to
+  `pipeline.verify_proposal()` instead of reimplementing the verification chain.
+- **Error code semantics**: `ActionProposal` instantiation / verifier-rule failures
+  are now reported as `PIC_VERIFIER_FAILED` (instead of `PIC_POLICY_VIOLATION` in
+  some MCP paths).
+- `pic-cli verify` now uses the shared pipeline (`verify_proposal()`), aligning CLI
+  behavior with MCP/LangGraph verification flow.
+- `_debug_enabled()` moved to `errors.py` (shared location).
+- `PICEvaluateLimits` canonical home moved to `pipeline.py`.
+- `integrations/__init__.py` exports `PipelineOptions`, `PipelineResult`,
+  `verify_proposal`, and `guard_mcp_tool_async`.
+
+### Fixed
+- Catch-all in MCP guard wrappers changed from `POLICY_VIOLATION` to
+  `INTERNAL_ERROR`.
+- Evidence imports narrowed from `except Exception` to `except ImportError`.
+- Impact resolution now falls back to `expected_tool` when `tool_name` is None.
+- Impact enum values normalized to strings before comparison.
+
+### Added
+- `pipeline.py` — shared verification pipeline with `PipelineOptions`,
+  `PipelineResult`, and `verify_proposal()`.
+- `tests/test_pipeline.py` — 26 tests covering schema, verifier rules, tool
+  binding, limits, impact resolution, evidence gating, time budget, and result shape.
+- `tests/conftest.py` — `make_proposal()` helper and reusable pytest fixtures.
+- `_b64decode()` now supports a `strict` mode (default remains permissive for
+  backward compatibility; strict mode will be used in future canonicalization
+  tightening).
+- Cross-ref comments on `VERIFIER_FAILED` and `POLICY_VIOLATION` in `errors.py`.
+
+---
+
 ## [0.6.0] - 2026-02-19
 
 ### Added
