@@ -37,9 +37,12 @@ from __future__ import annotations
 import json
 import logging
 import os
+import re
 import subprocess
 import time
 import uuid
+from datetime import datetime, timezone
+from functools import lru_cache
 from importlib import metadata
 from http.server import HTTPServer, BaseHTTPRequestHandler
 from pathlib import Path
@@ -57,6 +60,8 @@ log = logging.getLogger("pic_standard.http_bridge")
 audit_log = logging.getLogger("pic_standard.audit")
 
 PIC_VERSION = "1.0"
+# TODO: Replace static placeholder when PIC policy objects expose an explicit
+# version field that can be surfaced by the bridge.
 POLICY_VERSION = "1.0"
 
 # Maximum request body size (1MB) to prevent memory exhaustion attacks
@@ -65,10 +70,14 @@ MAX_REQUEST_BYTES = 1024 * 1024
 # Socket read timeout (seconds) to prevent slow/malicious clients from hanging the server
 READ_TIMEOUT_SECS = 5.0
 
+MAX_REQUEST_ID_LEN = 128
+REQUEST_ID_RE = re.compile(r"^[A-Za-z0-9._:-]+$")
+
 # ------------------------------------------------------------------
 # Request / response helpers
 # ------------------------------------------------------------------
 
+@lru_cache(maxsize=1)
 def _get_git_commit() -> str:
     """Get the current git commit hash, or 'unknown' if not in a git repo."""
     try:
@@ -91,7 +100,21 @@ def _get_package_version() -> str:
         return metadata.version("pic-standard")
     except metadata.PackageNotFoundError:
         return "unknown"
-    
+
+
+def _sanitize_request_id(request_id: Optional[str]) -> Optional[str]:
+    if request_id is None:
+        return None
+
+    normalized = request_id.replace("\r", "").replace("\n", "").strip()
+    if not normalized:
+        return None
+    if len(normalized) > MAX_REQUEST_ID_LEN:
+        return None
+    if not REQUEST_ID_RE.fullmatch(normalized):
+        return None
+    return normalized
+
 
 def _generate_request_id() -> str:
     """Generate a unique request ID."""
@@ -170,16 +193,18 @@ def _log_audit(
     eval_ms: int,
     error_code: Optional[str] = None,
     error_message: Optional[str] = None,
+    event: str = "verify_decision",
 ) -> None:
     """Log a structured JSON audit record (one line per decision)."""
     audit_record = {
+        "event": event,
         "request_id": request_id,
         "tool_name": tool_name,
+        "error_code": error_code or "PIC_OK",
         "allowed": allowed,
         "eval_ms": eval_ms,
+        "timestamp": datetime.now(timezone.utc).isoformat().replace("+00:00", "Z"),
     }
-    if error_code:
-        audit_record["error_code"] = error_code
     if error_message:
         audit_record["error_message"] = error_message
 
@@ -214,15 +239,16 @@ def handle_verify(
         eval_ms = int((time.perf_counter() - t0) * 1000)
         _log_audit(
             request_id=request_id,
-            tool_name="",
+            tool_name=str(tool_name) if tool_name else "",
             allowed=False,
             eval_ms=eval_ms,
-            error_code="PIC_INVALID_REQUEST",
+            error_code=PICErrorCode.INVALID_REQUEST.value,
             error_message=error_message,
+            event="request_validation_failed",
         )
         return {
             "allowed": False,
-            "error": {"code": "PIC_INVALID_REQUEST", "message": error_message},
+            "error": {"code": PICErrorCode.INVALID_REQUEST.value, "message": error_message},
             "eval_ms": eval_ms,
             "request_id": request_id,
         }
@@ -235,12 +261,13 @@ def handle_verify(
             tool_name=tool_name.strip(),
             allowed=False,
             eval_ms=eval_ms,
-            error_code="PIC_INVALID_REQUEST",
+            error_code=PICErrorCode.INVALID_REQUEST.value,
             error_message=error_message,
+            event="request_validation_failed",
         )
         return {
             "allowed": False,
-            "error": {"code": "PIC_INVALID_REQUEST", "message": error_message},
+            "error": {"code": PICErrorCode.INVALID_REQUEST.value, "message": error_message},
             "eval_ms": eval_ms,
             "request_id": request_id,
         }
@@ -262,6 +289,7 @@ def handle_verify(
             tool_name=tool_name.strip(),
             allowed=True,
             eval_ms=eval_ms,
+            event="verification_allowed",
         )
         return {
             "allowed": True,
@@ -280,6 +308,7 @@ def handle_verify(
             eval_ms=eval_ms,
             error_code=e.code.value,
             error_message=e.message,
+            event="verification_blocked",
         )
         result: Dict[str, Any] = {
             "allowed": False,
@@ -301,6 +330,7 @@ def handle_verify(
             eval_ms=eval_ms,
             error_code=PICErrorCode.INTERNAL_ERROR.value,
             error_message="Internal verification error",
+            event="internal_error",
         )
         result = {
             "allowed": False,
@@ -334,7 +364,7 @@ class PICBridgeHandler(BaseHTTPRequestHandler):
 
     def _get_or_create_request_id(self) -> str:
         """Extract X-Request-ID from request headers or create a new one."""
-        request_id = self.headers.get("X-Request-ID")
+        request_id = _sanitize_request_id(self.headers.get("X-Request-ID"))
         if request_id:
             return request_id
         return _generate_request_id()
@@ -377,7 +407,7 @@ class PICBridgeHandler(BaseHTTPRequestHandler):
                 400,
                 {
                     "allowed": False,
-                    "error": {"code": "PIC_INVALID_REQUEST", "message": str(e)},
+                    "error": {"code": PICErrorCode.INVALID_REQUEST.value, "message": str(e)},
                     "eval_ms": 0,
                     "request_id": request_id,
                 },
@@ -388,8 +418,9 @@ class PICBridgeHandler(BaseHTTPRequestHandler):
                 tool_name="",
                 allowed=False,
                 eval_ms=0,
-                error_code="PIC_INVALID_REQUEST",
+                error_code=PICErrorCode.INVALID_REQUEST.value,
                 error_message=str(e),
+                event="request_validation_failed",
             )
             return
         except Exception:
@@ -399,7 +430,7 @@ class PICBridgeHandler(BaseHTTPRequestHandler):
                 400,
                 {
                     "allowed": False,
-                    "error": {"code": "PIC_INVALID_REQUEST", "message": "Malformed or non-JSON body"},
+                    "error": {"code": PICErrorCode.INVALID_REQUEST.value, "message": "Malformed or non-JSON body"},
                     "eval_ms": 0,
                     "request_id": request_id,
                 },
@@ -410,8 +441,9 @@ class PICBridgeHandler(BaseHTTPRequestHandler):
                 tool_name="",
                 allowed=False,
                 eval_ms=0,
-                error_code="PIC_INVALID_REQUEST",
+                error_code=PICErrorCode.INVALID_REQUEST.value,
                 error_message="Malformed or non-JSON body",
+                event="request_validation_failed",
             )
             return
 

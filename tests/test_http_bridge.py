@@ -129,6 +129,73 @@ def test_bridge_leaks_details_when_debug(monkeypatch):
     assert "message" in result["error"]
 
 
+def test_bridge_audit_shape_allow(caplog):
+    caplog.set_level("INFO", logger="pic_standard.audit")
+
+    result = handle_verify(
+        {"tool_name": "payments_send", "tool_args": {"amount": 500, "__pic": _proposal("trusted")}},
+        policy=POLICY,
+        limits=PICEvaluateLimits(),
+        verify_evidence=False,
+        proposal_base_dir=Path(".").resolve(),
+        evidence_root_dir=None,
+        request_id="req-audit-allow",
+    )
+    assert result["allowed"] is True
+
+    record = next(r for r in caplog.records if r.name == "pic_standard.audit" and "req-audit-allow" in r.message)
+    payload = json.loads(record.message)
+    assert payload["event"] == "verification_allowed"
+    assert payload["request_id"] == "req-audit-allow"
+    assert payload["tool_name"] == "payments_send"
+    assert payload["allowed"] is True
+    assert payload["error_code"] == "PIC_OK"
+    assert isinstance(payload["eval_ms"], int)
+    assert isinstance(payload["timestamp"], str)
+
+
+def test_bridge_audit_shape_block(caplog):
+    caplog.set_level("INFO", logger="pic_standard.audit")
+
+    result = handle_verify(
+        {"tool_name": "payments_send", "tool_args": {"amount": 500, "__pic": _proposal("untrusted")}},
+        policy=POLICY,
+        limits=PICEvaluateLimits(),
+        verify_evidence=False,
+        proposal_base_dir=Path(".").resolve(),
+        evidence_root_dir=None,
+        request_id="req-audit-block",
+    )
+    assert result["allowed"] is False
+
+    record = next(r for r in caplog.records if r.name == "pic_standard.audit" and "req-audit-block" in r.message)
+    payload = json.loads(record.message)
+    assert payload["event"] == "verification_blocked"
+    assert payload["request_id"] == "req-audit-block"
+    assert payload["tool_name"] == "payments_send"
+    assert payload["allowed"] is False
+    assert isinstance(payload["error_code"], str)
+    assert payload["error_code"].startswith("PIC_")
+    assert isinstance(payload["eval_ms"], int)
+    assert isinstance(payload["timestamp"], str)
+
+
+def test_bridge_request_id_header_invalid_falls_back_to_generated(bridge_url):
+    invalid_request_id = "bad@value"
+    req = urllib.request.Request(
+        f"{bridge_url}/health",
+        method="GET",
+        headers={"X-Request-ID": invalid_request_id},
+    )
+    with urllib.request.urlopen(req) as resp:
+        result = json.loads(resp.read())
+        returned = result["request_id"]
+        assert returned != invalid_request_id
+        assert isinstance(returned, str)
+        assert len(returned) > 0
+        assert resp.headers.get("X-Request-ID") == returned
+
+
 # ------------------------------------------------------------------
 # HTTP integration tests (start real server on random port)
 # ------------------------------------------------------------------
