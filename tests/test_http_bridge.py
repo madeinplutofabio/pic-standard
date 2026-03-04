@@ -147,9 +147,9 @@ def test_bridge_audit_shape_allow(caplog):
     payload = json.loads(record.message)
     assert payload["event"] == "verification_allowed"
     assert payload["request_id"] == "req-audit-allow"
-    assert payload["tool_name"] == "payments_send"
+    assert payload["tool"] == "payments_send"
     assert payload["allowed"] is True
-    assert payload["error_code"] == "PIC_OK"
+    assert payload["code"] == "PIC_OK"
     assert isinstance(payload["eval_ms"], int)
     assert isinstance(payload["timestamp"], str)
 
@@ -172,10 +172,10 @@ def test_bridge_audit_shape_block(caplog):
     payload = json.loads(record.message)
     assert payload["event"] == "verification_blocked"
     assert payload["request_id"] == "req-audit-block"
-    assert payload["tool_name"] == "payments_send"
+    assert payload["tool"] == "payments_send"
     assert payload["allowed"] is False
-    assert isinstance(payload["error_code"], str)
-    assert payload["error_code"].startswith("PIC_")
+    assert isinstance(payload["code"], str)
+    assert payload["code"].startswith("PIC_")
     assert isinstance(payload["eval_ms"], int)
     assert isinstance(payload["timestamp"], str)
 

@@ -29,14 +29,13 @@ Design notes
 * X-Request-ID header: if provided in request, echoed back in response.
   If not provided, a UUID is generated and included in response.
 * Audit logging: one JSON line per decision to the audit logger (pic_standard.audit)
-  with request_id, tool_name, allowed, eval_ms, and optional error_code/error_message.
+  with request_id, tool, allowed, eval_ms, and optional code/error_message.
 """
 
 from __future__ import annotations
 
 import json
 import logging
-import os
 import re
 import subprocess
 import time
@@ -95,6 +94,7 @@ def _get_git_commit() -> str:
     return "unknown"
 
 
+@lru_cache(maxsize=1)
 def _get_package_version() -> str:
     try:
         return metadata.version("pic-standard")
@@ -188,10 +188,10 @@ def _read_json_body(handler: BaseHTTPRequestHandler) -> Dict[str, Any]:
 
 def _log_audit(
     request_id: str,
-    tool_name: str,
+    tool: str,
     allowed: bool,
     eval_ms: int,
-    error_code: Optional[str] = None,
+    code: Optional[str] = None,
     error_message: Optional[str] = None,
     event: str = "verify_decision",
 ) -> None:
@@ -199,8 +199,8 @@ def _log_audit(
     audit_record = {
         "event": event,
         "request_id": request_id,
-        "tool_name": tool_name,
-        "error_code": error_code or "PIC_OK",
+        "tool": tool,
+        "code": code or "PIC_OK",
         "allowed": allowed,
         "eval_ms": eval_ms,
         "timestamp": datetime.now(timezone.utc).isoformat().replace("+00:00", "Z"),
@@ -239,10 +239,10 @@ def handle_verify(
         eval_ms = int((time.perf_counter() - t0) * 1000)
         _log_audit(
             request_id=request_id,
-            tool_name=str(tool_name) if tool_name else "",
+            tool=str(tool_name) if tool_name else "",
             allowed=False,
             eval_ms=eval_ms,
-            error_code=PICErrorCode.INVALID_REQUEST.value,
+            code=PICErrorCode.INVALID_REQUEST.value,
             error_message=error_message,
             event="request_validation_failed",
         )
@@ -258,10 +258,10 @@ def handle_verify(
         eval_ms = int((time.perf_counter() - t0) * 1000)
         _log_audit(
             request_id=request_id,
-            tool_name=tool_name.strip(),
+            tool=tool_name.strip(),
             allowed=False,
             eval_ms=eval_ms,
-            error_code=PICErrorCode.INVALID_REQUEST.value,
+            code=PICErrorCode.INVALID_REQUEST.value,
             error_message=error_message,
             event="request_validation_failed",
         )
@@ -286,7 +286,7 @@ def handle_verify(
         log.info("ALLOW tool=%s eval_ms=%d", tool_name.strip(), eval_ms)
         _log_audit(
             request_id=request_id,
-            tool_name=tool_name.strip(),
+            tool=tool_name.strip(),
             allowed=True,
             eval_ms=eval_ms,
             event="verification_allowed",
@@ -303,10 +303,10 @@ def handle_verify(
         log.info("BLOCK tool=%s code=%s eval_ms=%d", tool_name.strip(), e.code.value, eval_ms)
         _log_audit(
             request_id=request_id,
-            tool_name=tool_name.strip(),
+            tool=tool_name.strip(),
             allowed=False,
             eval_ms=eval_ms,
-            error_code=e.code.value,
+            code=e.code.value,
             error_message=e.message,
             event="verification_blocked",
         )
@@ -325,10 +325,10 @@ def handle_verify(
         log.exception("BLOCK tool=%s reason=internal_error eval_ms=%d", tool_name.strip(), eval_ms)
         _log_audit(
             request_id=request_id,
-            tool_name=tool_name.strip(),
+            tool=tool_name.strip(),
             allowed=False,
             eval_ms=eval_ms,
-            error_code=PICErrorCode.INTERNAL_ERROR.value,
+            code=PICErrorCode.INTERNAL_ERROR.value,
             error_message="Internal verification error",
             event="internal_error",
         )
@@ -415,10 +415,10 @@ class PICBridgeHandler(BaseHTTPRequestHandler):
             )
             _log_audit(
                 request_id=request_id,
-                tool_name="",
+                tool="",
                 allowed=False,
                 eval_ms=0,
-                error_code=PICErrorCode.INVALID_REQUEST.value,
+                code=PICErrorCode.INVALID_REQUEST.value,
                 error_message=str(e),
                 event="request_validation_failed",
             )
@@ -438,10 +438,10 @@ class PICBridgeHandler(BaseHTTPRequestHandler):
             )
             _log_audit(
                 request_id=request_id,
-                tool_name="",
+                tool="",
                 allowed=False,
                 eval_ms=0,
-                error_code=PICErrorCode.INVALID_REQUEST.value,
+                code=PICErrorCode.INVALID_REQUEST.value,
                 error_message="Malformed or non-JSON body",
                 event="request_validation_failed",
             )
