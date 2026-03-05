@@ -129,6 +129,73 @@ def test_bridge_leaks_details_when_debug(monkeypatch):
     assert "message" in result["error"]
 
 
+def test_bridge_audit_shape_allow(caplog):
+    caplog.set_level("INFO", logger="pic_standard.audit")
+
+    result = handle_verify(
+        {"tool_name": "payments_send", "tool_args": {"amount": 500, "__pic": _proposal("trusted")}},
+        policy=POLICY,
+        limits=PICEvaluateLimits(),
+        verify_evidence=False,
+        proposal_base_dir=Path(".").resolve(),
+        evidence_root_dir=None,
+        request_id="req-audit-allow",
+    )
+    assert result["allowed"] is True
+
+    record = next(r for r in caplog.records if r.name == "pic_standard.audit" and "req-audit-allow" in r.message)
+    payload = json.loads(record.message)
+    assert payload["event"] == "verification_allowed"
+    assert payload["request_id"] == "req-audit-allow"
+    assert payload["tool"] == "payments_send"
+    assert payload["allowed"] is True
+    assert payload["code"] == "PIC_OK"
+    assert isinstance(payload["eval_ms"], int)
+    assert isinstance(payload["timestamp"], str)
+
+
+def test_bridge_audit_shape_block(caplog):
+    caplog.set_level("INFO", logger="pic_standard.audit")
+
+    result = handle_verify(
+        {"tool_name": "payments_send", "tool_args": {"amount": 500, "__pic": _proposal("untrusted")}},
+        policy=POLICY,
+        limits=PICEvaluateLimits(),
+        verify_evidence=False,
+        proposal_base_dir=Path(".").resolve(),
+        evidence_root_dir=None,
+        request_id="req-audit-block",
+    )
+    assert result["allowed"] is False
+
+    record = next(r for r in caplog.records if r.name == "pic_standard.audit" and "req-audit-block" in r.message)
+    payload = json.loads(record.message)
+    assert payload["event"] == "verification_blocked"
+    assert payload["request_id"] == "req-audit-block"
+    assert payload["tool"] == "payments_send"
+    assert payload["allowed"] is False
+    assert isinstance(payload["code"], str)
+    assert payload["code"].startswith("PIC_")
+    assert isinstance(payload["eval_ms"], int)
+    assert isinstance(payload["timestamp"], str)
+
+
+def test_bridge_request_id_header_invalid_falls_back_to_generated(bridge_url):
+    invalid_request_id = "bad@value"
+    req = urllib.request.Request(
+        f"{bridge_url}/health",
+        method="GET",
+        headers={"X-Request-ID": invalid_request_id},
+    )
+    with urllib.request.urlopen(req) as resp:
+        result = json.loads(resp.read())
+        returned = result["request_id"]
+        assert returned != invalid_request_id
+        assert isinstance(returned, str)
+        assert len(returned) > 0
+        assert resp.headers.get("X-Request-ID") == returned
+
+
 # ------------------------------------------------------------------
 # HTTP integration tests (start real server on random port)
 # ------------------------------------------------------------------
@@ -170,7 +237,23 @@ def _http_get(url: str) -> dict:
 
 def test_bridge_health_endpoint(bridge_url):
     result = _http_get(f"{bridge_url}/health")
-    assert result == {"status": "ok"}
+    assert result["status"] == "ok"
+    # Phase 2.2: request_id should be present
+    assert "request_id" in result
+
+
+def test_bridge_version_endpoint(bridge_url):
+    result = _http_get(f"{bridge_url}/v1/version")
+    assert result["pic_version"] == "1.0"
+    assert isinstance(result["package_version"], str)
+    assert result["package_version"]
+    # Phase 2.2: commit and policy_version required
+    assert "commit" in result
+    assert isinstance(result["commit"], str)
+    assert "policy_version" in result
+    assert result["policy_version"] == "1.0"
+    # Phase 2.2: request_id should be present
+    assert "request_id" in result
 
 
 def test_bridge_http_allows_trusted(bridge_url):
@@ -181,6 +264,61 @@ def test_bridge_http_allows_trusted(bridge_url):
     assert result["allowed"] is True
     assert result["error"] is None
     assert isinstance(result["eval_ms"], int)
+    # Phase 2.2: request_id should be present
+    assert "request_id" in result
+    assert isinstance(result["request_id"], str)
+
+
+# ------------------------------------------------------------------
+# Phase 2.2: X-Request-ID header and request_id in responses
+# ------------------------------------------------------------------
+
+
+def test_bridge_request_id_generated_if_not_provided(bridge_url):
+    """If X-Request-ID header not provided, server generates one."""
+    result = _http_get(f"{bridge_url}/health")
+    assert "request_id" in result
+    request_id = result["request_id"]
+    assert isinstance(request_id, str)
+    assert len(request_id) > 0
+
+
+def test_bridge_request_id_echoed_if_provided(bridge_url):
+    """If X-Request-ID header provided, server echoes it back."""
+    import urllib.request
+    
+    custom_request_id = "my-custom-request-12345"
+    req = urllib.request.Request(
+        f"{bridge_url}/health",
+        method="GET",
+        headers={"X-Request-ID": custom_request_id},
+    )
+    with urllib.request.urlopen(req) as resp:
+        result = json.loads(resp.read())
+        assert result["request_id"] == custom_request_id
+        # Also check it's in response headers
+        assert resp.headers.get("X-Request-ID") == custom_request_id
+
+
+def test_bridge_request_id_in_verify_response(bridge_url):
+    """Verify endpoint includes request_id in response."""
+    result = _http_post(
+        f"{bridge_url}/verify",
+        {"tool_name": "payments_send", "tool_args": {"amount": 500, "__pic": _proposal("trusted")}},
+    )
+    assert "request_id" in result
+    assert isinstance(result["request_id"], str)
+
+
+def test_bridge_request_id_in_error_response(bridge_url):
+    """Error responses also include request_id."""
+    result = _http_post(
+        f"{bridge_url}/verify",
+        {"tool_name": "payments_send", "tool_args": {"amount": 500, "__pic": _proposal("untrusted")}},
+    )
+    assert result["allowed"] is False
+    assert "request_id" in result
+    assert isinstance(result["request_id"], str)
 
 
 def test_bridge_http_blocks_untrusted(bridge_url):
