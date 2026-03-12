@@ -68,13 +68,13 @@ jobs:
       - name: Setup Node
         uses: actions/setup-node@v4
         with:
-          node-version: "20"
+          node-version: "22"
           cache: "npm"
           cache-dependency-path: integrations/openclaw/package-lock.json
 
       - name: Install dependencies
         working-directory: integrations/openclaw
-        run: npm ci
+        run: npm install
 
       - name: Type check
         working-directory: integrations/openclaw
