@@ -5,6 +5,32 @@ All notable changes to this project will be documented in this file.
 This project follows Semantic Versioning:
 https://semver.org/
 
+## [0.7.0] - 2026-03-12
+
+### Added
+- **`KeyResolver` protocol** — injectable, sync-only interface for trust key resolution.
+  `get_key(key_id) -> Optional[bytes]` and `key_status(key_id) -> KeyStatus`.
+- **`StaticKeyRingResolver`** — zero-I/O resolver backed by a pre-loaded `TrustedKeyRing`.
+- `PipelineOptions.key_resolver` — threads custom resolver through the shared pipeline
+  into `EvidenceSystem`.
+- `KeyResolver` and `StaticKeyRingResolver` exported from `pic_standard` public API.
+- `tests/test_key_resolver.py` — 7 tests covering resolver protocol, injection,
+  lazy default semantics, and pipeline threading.
+
+### Changed
+- **Evidence hot path fix:** `EvidenceSystem` no longer reloads the keyring per signature
+  item. Default trust resolution is lazy (loaded on first signature verification only).
+- `EvidenceSystem.__init__` accepts optional `key_resolver` parameter. When omitted,
+  the default resolver is constructed lazily via `TrustedKeyRing.load_default()` on
+  first use — hash-only evidence never triggers keyring loading.
+- Deleted `_load_public_key_from_keyring()` module-level function; replaced by
+  `EvidenceSystem._resolve_public_key()` instance method using the resolver protocol.
+
+### Fixed
+- Hash-only evidence verification no longer triggers unnecessary keyring file I/O.
+
+---
+
 ## [0.6.1] - 2026-02-26
 
 ### Changed

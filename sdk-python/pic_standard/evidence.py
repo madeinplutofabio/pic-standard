@@ -10,6 +10,8 @@ from urllib.parse import urlparse
 from pydantic import BaseModel, Field
 from typing import Literal
 
+from pic_standard.keyring import KeyResolver, StaticKeyRingResolver, TrustedKeyRing
+
 
 # ----------------------------
 # Models (match schema intent)
@@ -168,79 +170,6 @@ def _b64decode(s: str, *, what: str, strict: bool = False) -> bytes:
         raise ValueError(f"Invalid base64 for {what}") from e
 
 
-def _load_public_key_from_keyring(key_id: str) -> bytes:
-    """
-    Resolve raw public key bytes from TrustedKeyRing via key_id.
-
-    TrustedKeyRing.get() may return None if:
-      - key_id is unknown (missing)
-      - key_id is revoked
-      - key_id is expired
-
-    We distinguish these cases for operator clarity.
-    """
-    from pic_standard.keyring import TrustedKeyRing
-
-    kr = TrustedKeyRing.load_default()
-
-    kid = (key_id or "").strip()
-    if not kid:
-        raise ValueError("Missing key_id for signature evidence")
-
-    # Prefer the richer status API when available (v0.4.1+).
-    status = None
-    if getattr(kr, "key_status", None):
-        try:
-            status = kr.key_status(kid)
-        except Exception:
-            status = None
-
-    if status == "revoked":
-        raise ValueError(f"Key '{kid}' is revoked")
-
-    if status == "expired":
-        # If we can, include expires_at for clarity.
-        expires_at_str = None
-        if getattr(kr, "get_entry", None):
-            try:
-                entry = kr.get_entry(kid)
-                if entry is not None:
-                    dt = getattr(entry, "expires_at", None)
-                    if dt is not None:
-                        try:
-                            expires_at_str = dt.isoformat()
-                        except Exception:
-                            expires_at_str = None
-            except Exception:
-                expires_at_str = None
-
-        if expires_at_str:
-            raise ValueError(f"Key '{kid}' is expired (expires_at={expires_at_str})")
-        raise ValueError(f"Key '{kid}' is expired")
-
-    # If status says missing, say missing (not ambiguous).
-    if status == "missing":
-        raise ValueError(f"Unknown key_id '{kid}' (not present in trusted keyring)")
-
-    pub = kr.get(kid)
-
-    # Fallback path (older keyring or unexpected state)
-    if pub is None:
-        # Try legacy helpers if present (best effort).
-        if getattr(kr, "is_revoked", None) and kr.is_revoked(kid):
-            raise ValueError(f"Key '{kid}' is revoked")
-        if getattr(kr, "is_expired", None) and kr.is_expired(kid):
-            raise ValueError(f"Key '{kid}' is expired")
-        raise ValueError(f"Unknown or inactive key_id '{kid}' (not present, expired, or revoked)")
-
-    if not isinstance(pub, (bytes, bytearray)):
-        raise ValueError(f"Invalid key type for '{kid}' (expected bytes)")
-    if len(pub) != 32:
-        raise ValueError(f"Invalid Ed25519 public key length for '{kid}' (expected 32 bytes)")
-
-    return bytes(pub)
-
-
 def _verify_ed25519_signature(*, public_key_raw: bytes, signature_b64: str, message: bytes) -> bool:
     """Verify Ed25519 signature using cryptography."""
     try:
@@ -283,15 +212,50 @@ class EvidenceSystem:
     def __init__(
         self,
         *,
+        key_resolver: Optional[KeyResolver] = None,
         max_file_bytes: int = 5 * 1024 * 1024,   # 5MB
         max_payload_bytes: int = 16 * 1024,       # 16KB payload cap (DoS guard)
         allow_file_evidence: bool = True,
         allow_sig_evidence: bool = True,
     ) -> None:
+        self._key_resolver = key_resolver  # None = lazy default on first sig
         self.max_file_bytes = int(max_file_bytes)
         self.max_payload_bytes = int(max_payload_bytes)
         self.allow_file_evidence = bool(allow_file_evidence)
         self.allow_sig_evidence = bool(allow_sig_evidence)
+
+    def _get_key_resolver(self) -> KeyResolver:
+        """Lazy-load default resolver on first use. Preserves hash-only semantics."""
+        if self._key_resolver is None:
+            self._key_resolver = StaticKeyRingResolver(TrustedKeyRing.load_default())
+        return self._key_resolver
+
+    def _resolve_public_key(self, key_id: str) -> bytes:
+        """Resolve raw public key bytes via the injected (or default) KeyResolver."""
+        kid = (key_id or "").strip()
+        if not kid:
+            raise ValueError("Missing key_id for signature evidence")
+
+        resolver = self._get_key_resolver()
+        status = resolver.key_status(kid)
+
+        if status == "revoked":
+            raise ValueError(f"Key '{kid}' is revoked")
+        if status == "expired":
+            raise ValueError(f"Key '{kid}' is expired")
+        if status == "missing":
+            raise ValueError(f"Unknown key_id '{kid}' (not present in trusted keyring)")
+
+        pub = resolver.get_key(kid)
+        if pub is None:
+            raise ValueError(f"Unknown or inactive key_id '{kid}'")
+
+        if not isinstance(pub, (bytes, bytearray)):
+            raise ValueError(f"Invalid key type for '{kid}' (expected bytes)")
+        if len(pub) != 32:
+            raise ValueError(f"Invalid Ed25519 public key length for '{kid}' (expected 32 bytes)")
+
+        return bytes(pub)
 
     def verify_all(
         self,
@@ -361,7 +325,7 @@ class EvidenceSystem:
                         f"Payload too large: {len(payload_bytes)} bytes (max {self.max_payload_bytes})"
                     )
 
-                pub_raw = _load_public_key_from_keyring(ev.key_id)
+                pub_raw = self._resolve_public_key(ev.key_id)
                 ok = _verify_ed25519_signature(
                     public_key_raw=pub_raw,
                     signature_b64=ev.signature,
@@ -412,3 +376,4 @@ def apply_verified_ids_to_provenance(proposal: Dict[str, Any], verified_ids: Set
 
     out["provenance"] = prov
     return out
+

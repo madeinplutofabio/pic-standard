@@ -114,6 +114,7 @@ class PipelineOptions:
     proposal_base_dir: Optional[Path] = None
     evidence_root_dir: Optional[Path] = None
     time_budget_ms: Optional[int] = None           # None = no budget; falls back to limits.max_eval_ms
+    key_resolver: Any = None                       # Optional[KeyResolver] — Any to avoid import issues when crypto missing
 
 
 @dataclass
@@ -258,7 +259,10 @@ def verify_proposal(
                         message="Evidence verification requested but evidence module is unavailable",
                     ), impact=impact)
 
-                es = EvidenceSystem()  # type: ignore[misc]
+                es_kwargs: Dict[str, Any] = {}
+                if opts.key_resolver is not None:
+                    es_kwargs["key_resolver"] = opts.key_resolver
+                es = EvidenceSystem(**es_kwargs)  # type: ignore[misc]
                 base_dir = opts.proposal_base_dir or Path(".").resolve()
                 root_dir = opts.evidence_root_dir or base_dir
 

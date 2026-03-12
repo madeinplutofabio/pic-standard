@@ -1,17 +1,17 @@
 # <p><img src="https://raw.githubusercontent.com/madeinplutofabio/pic-standard/main/picico.png" height="60" align="absmiddle"> PIC Standard: Provenance & Intent Contracts</p>
 
-**Make your AI agents safe, auditable & production-ready. No rogue actions, no blind trust.**
+**Local-first action gating for AI agents. Verify intent, provenance, and evidence before any high-impact tool call executes.**
 
 [![PyPI version](https://img.shields.io/pypi/v/pic-standard.svg?logo=pypi&logoColor=white)](https://pypi.org/project/pic-standard/)
 [![CI](https://github.com/madeinplutofabio/pic-standard/actions/workflows/ci.yml/badge.svg)](https://github.com/madeinplutofabio/pic-standard/actions/workflows/ci.yml)
 [![GitHub stars](https://img.shields.io/github/stars/madeinplutofabio/pic-standard?style=social)](https://github.com/madeinplutofabio/pic-standard)
 [![License](https://img.shields.io/github/license/madeinplutofabio/pic-standard)](https://github.com/madeinplutofabio/pic-standard/blob/main/LICENSE)
 
-PIC is a lightweight, local-first protocol that forces AI agents to **prove** every important action before it happens. Agents must declare intent, risk, provenance, and evidence; PIC verifies everything and **fails closed** if anything is wrong.
+PIC is a lightweight, local-first protocol that forces AI agents to **prove** every important action before it happens. Agents must declare intent, impact, provenance, and evidence; PIC verifies everything and **fails closed** if anything is wrong.
 
 *No more hallucinations turning into wire transfers. No more prompt injections triggering data exports.*
 
-**Example:** An LLM agent decides to send a $500 payment based on a user message. PIC requires the agent to prove: *where did this instruction come from? Is the source trusted? Is there evidence the invoice is real?* If any answer is missing or wrong, the action is blocked before it reaches the payment API.
+**Example — when PIC blocks:** A Slack message asks an LLM agent to send a $500 payment. PIC requires the agent to prove: *where did this instruction come from? Is the source trusted? Is there evidence the invoice is real?* The Slack message carries no trusted provenance, the claim has no backing evidence — PIC returns `block`. The payment tool never executes.
 
 ---
 
@@ -34,14 +34,19 @@ PIC is a lightweight, local-first protocol that forces AI agents to **prove** ev
 
 > Guardrails constrain **what the model says**. PIC constrains **what the agent is allowed to do** based on **verifiable provenance + evidence**.
 
+PIC is built for agent frameworks, internal tool gateways, and production systems where high-impact actions must be justified before execution.
+
 - **Stops prompt injections & blind tool calls** at the action boundary
 - **Works 100% locally**: zero cloud, zero data leaves your machine
 - **Plugs into your stack in minutes**: LangGraph, MCP, OpenClaw, Cordum
-- **Open-source (Apache 2.0)**:audit it, fork it, own it
+- **Open-source (Apache 2.0)**: audit it, fork it, own it
 
 ---
 
 ## Quickstart
+
+Try the verifier locally against a sample high-impact proposal in under a minute.
+
 ```bash
 pip install pic-standard
 
@@ -49,6 +54,9 @@ pip install pic-standard
 pic-cli verify examples/financial_irreversible.json
 # Schema valid
 # Verifier passed
+
+# Evidence-aware verification (hash + signature)
+pic-cli verify examples/financial_sig_ok.json --verify-evidence
 ```
 
 **Optional extras:**
@@ -69,7 +77,7 @@ pytest -q
 
 ## The PIC Contract
 
-Agents emit an **Action Proposal** (`PIC/1.0`) before every tool call:
+PIC is enforced at the moment before tool execution. The agent must emit a structured Action Proposal that can be validated, verified, and bound to the intended tool.
 
 | Field | Purpose |
 |-------|---------|
@@ -105,6 +113,9 @@ PIC supports deterministic evidence verification that upgrades provenance trust 
 |------|-------------|
 | `hash` | SHA-256 verification of file artifacts (`file://...`) |
 | `sig` | Ed25519 signature verification via trusted keyring |
+
+Ed25519 signature verification requires `pip install "pic-standard[crypto]"`.
+
 ```bash
 # Verify hash evidence
 pic-cli verify examples/financial_hash_ok.json --verify-evidence
@@ -125,6 +136,11 @@ pic-cli keys                        # Inspect current keyring
 pic-cli keys --write-example        # Generate starter keyring
 ```
 
+**Custom resolvers (v0.7+):** As of v0.7, trust resolution is injectable and local-first. PIC no longer reloads the default keyring per signature, and custom resolvers can plug into the verifier and pipeline directly. Implement the `KeyResolver` protocol to use your own trust backend or preloaded trust source (HSM-backed service, Vault-managed keys, cached remote keyring, etc.):
+```python
+from pic_standard import KeyResolver, StaticKeyRingResolver
+```
+
 Full guide: [docs/keyring.md](docs/keyring.md)
 
 ---
@@ -136,54 +152,35 @@ Full guide: [docs/keyring.md](docs/keyring.md)
 Guard any tool node with `PICToolNode`:
 ```bash
 pip install "pic-standard[langgraph]"
-python examples/langgraph_pic_toolnode_demo.py
 ```
-
-- Validates schema + verifier + tool binding per tool call
-- Returns `ToolMessage` outputs
+Full guide: [docs/langgraph-integration.md](docs/langgraph-integration.md)
 
 ---
 
 ### MCP (Model Context Protocol)
 
-Enterprise tool guarding with production defaults:
+Enterprise tool guarding with fail-closed defaults, request correlation, DoS limits, and evidence sandboxing:
 ```bash
 pip install "pic-standard[mcp]"
-python -u examples/mcp_pic_client_demo.py
 ```
-
-- Fail-closed, request tracing, DoS limits, evidence sandboxing
-- Debug gating (`PIC_DEBUG=1`)
+Full guide: [docs/mcp-integration.md](docs/mcp-integration.md)
 
 ---
 
 ### OpenClaw
 
-TypeScript plugin for OpenClaw AI agents (hook API):
+TypeScript plugin for OpenClaw AI agents (`pic-gate`, `pic-init`, `pic-audit` hooks):
 ```bash
-# Start the PIC bridge
 pic-cli serve --port 7580
-
-# Install the plugin
 cd integrations/openclaw && npm install && npm run build
-openclaw plugins install .
 ```
-
-- `pic-gate` — verifies proposals before tool execution
-- `pic-init` — injects PIC awareness at session start
-- `pic-audit` — structured audit logging
-
 Full guide: [docs/openclaw-integration.md](docs/openclaw-integration.md)
 
 ---
 
 ### Cordum
 
-Go Pack providing PIC verification as a Cordum workflow gate step:
-
-- `job.pic-standard.verify` worker topic with fail-closed design
-- Three-way routing: `proceed` / `fail` / `require_approval`
-- Pack manifest with schemas, overlays, and simulation tests
+Go Pack providing PIC verification as a Cordum workflow gate step with fail-closed three-way routing.
 
 Full guide: [docs/cordum-integration.md](docs/cordum-integration.md)
 
@@ -194,8 +191,9 @@ Full guide: [docs/cordum-integration.md](docs/cordum-integration.md)
 For non-Python integrations, PIC exposes an HTTP bridge:
 ```bash
 pic-cli serve --port 3100
-# POST /verify with {tool_name, tool_args}
-# GET /health
+# POST /verify   — verify an action proposal
+# GET  /health   — liveness check
+# GET  /v1/version — package + protocol version
 ```
 
 ---
@@ -212,12 +210,15 @@ Verify locally: `sha256sum -c docs/RFC-0001.SHA256`
 
 ## Roadmap
 
-- [x] Phase 1: Standardize Impact Classes (money, privacy, irreversible, ...)
-- [x] Phase 2: Reference Python verifier + CLI
-- [x] Phase 3: Anchor integrations (LangGraph + MCP)
-- [x] Phase 4: Evidence verification (hash + Ed25519 signatures)
-- [x] Phase 5: OpenClaw + Cordum integrations
-- [ ] Phase 6: TypeScript SDK + audit dashboard + case studies
+- [x] Core verifier, CLI, schema, policy system
+- [x] Evidence verification (SHA-256 hash + Ed25519 signatures)
+- [x] Anchor integrations (LangGraph, MCP, OpenClaw, Cordum)
+- [x] Injectable key resolution + hot path fix (v0.7)
+- [ ] Canonicalization spec (PIC Canonical JSON v1)
+- [ ] Conformance suite with cross-implementation test vectors
+- [ ] Normative semantics (MUST/SHOULD spec document)
+- [ ] OpenAPI spec + guard hardening (structured audit logs, request correlation)
+- [ ] TypeScript local verifier (second independent implementation)
 
 ---
 
@@ -229,6 +230,8 @@ We're actively seeking:
 - Security researchers to stress-test causal logic
 - Framework authors to build native integrations
 - Enterprise architects to define domain Impact Classes
+
+Good first contribution areas right now: canonicalization spec, conformance vectors, OpenAPI spec, and TS verifier groundwork.
 
 If you find PIC useful, please consider giving us a star on GitHub: it helps attract more security experts and framework authors into the community.
 
