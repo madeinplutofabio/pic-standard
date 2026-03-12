@@ -7,7 +7,7 @@ import re
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any, Dict, Optional, Set, Literal
+from typing import Any, Dict, Literal, Optional, Protocol, Set, runtime_checkable
 
 
 _HEX_RE = re.compile(r"^[0-9a-fA-F]+$")
@@ -119,6 +119,13 @@ class TrustedKey:
 
 
 KeyStatus = Literal["ok", "missing", "revoked", "expired"]
+
+
+@runtime_checkable
+class KeyResolver(Protocol):
+    """Sync-only protocol for resolving trust keys."""
+    def get_key(self, key_id: str) -> Optional[bytes]: ...
+    def key_status(self, key_id: str) -> KeyStatus: ...
 
 
 @dataclass(frozen=True)
@@ -364,3 +371,16 @@ class TrustedKeyRing:
             return TrustedKeyRing.from_json_file(default)
 
         return TrustedKeyRing(keys={}, revoked_keys=set())
+
+
+class StaticKeyRingResolver(KeyResolver):
+    """KeyResolver backed by a pre-loaded TrustedKeyRing. Zero I/O at resolve time."""
+
+    def __init__(self, keyring: TrustedKeyRing) -> None:
+        self._keyring = keyring
+
+    def get_key(self, key_id: str) -> Optional[bytes]:
+        return self._keyring.get(key_id)
+
+    def key_status(self, key_id: str) -> KeyStatus:
+        return self._keyring.key_status(key_id)
