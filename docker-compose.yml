@@ -1,0 +1,29 @@
+services:
+  pic-server:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: pic-cli-serve
+    ports:
+      - "7580:7580"
+    environment:
+      PIC_POLICY_PATH: /config/pic_policy.json
+      PIC_KEYS_PATH: /config/pic_keys.json
+    volumes:
+      - ./pic_policy.json:/config/pic_policy.json:ro
+      - ./pic_keys.example.json:/config/pic_keys.json:ro
+      - ./:/workspace:ro
+    command:
+      - "--host"
+      - "0.0.0.0"
+      - "--port"
+      - "7580"
+      - "--repo-root"
+      - "/workspace"
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://localhost:7580/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+    restart: unless-stopped
