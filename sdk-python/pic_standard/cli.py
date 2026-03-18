@@ -15,9 +15,6 @@ from .pipeline import PipelineOptions, verify_proposal, _load_packaged_schema
 # NEW: keys command
 from .keyring import TrustedKeyRing, KeyRingError
 
-# NEW: serve command
-from .integrations.http_bridge import start_bridge
-
 
 def load_json(path: Path) -> dict:
     try:
@@ -242,6 +239,8 @@ def cmd_keys(*, repo_root: Path, write_example: bool = False) -> int:
 # ------------------------------
 def cmd_serve(*, host: str, port: int, repo_root: Path, verify_evidence: bool = False) -> int:
     """Start the PIC HTTP bridge server."""
+    from .integrations.http_bridge import start_bridge
+
     policy = load_policy(repo_root=repo_root)
     source = _find_policy_source(repo_root)
     print(f"Starting PIC HTTP bridge on {host}:{port}")

@@ -5,6 +5,25 @@ All notable changes to this project will be documented in this file.
 This project follows Semantic Versioning:
 https://semver.org/
 
+## [0.7.1] - 2026-03-18
+
+### Fixed
+- **Import crash on base install**: `import pic_standard.cli` no longer fails
+  when optional dependencies (`langchain-core`, `mcp`) are not installed.
+  `integrations/__init__.py` now uses lazy `__getattr__` loading so importing
+  one integration does not pull in another's dependencies.
+- CLI `serve` command import moved inside the handler — `pic-cli verify`,
+  `pic-cli keys`, etc. no longer trigger any integration imports.
+
+### Added
+- `docs/spec-status.md` — companion status note for RFC-0001, explaining that
+  the defensive publication is intentionally preserved with its original SHA-256
+  fingerprint while the implementation has evolved through v0.7.x.
+- `TYPE_CHECKING` imports and `__dir__()` in `integrations/__init__.py` for
+  IDE/type-checker support.
+
+---
+
 ## [0.7.0] - 2026-03-12
 
 ### Added
