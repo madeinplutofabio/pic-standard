@@ -16,3 +16,16 @@ htmlcov
 .vscode
 .idea
 node_modules
+tests/
+docs/
+examples/
+integrations/
+scripts/
+docker-compose.yml
+pic_keys.example.json
+pic_policy.example.json
+picico.png
+CITATION.cff
+CHANGELOG.md
+CONTRIBUTING.md
+PUBLISH_PYPI.md

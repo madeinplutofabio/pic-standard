@@ -1,5 +1,5 @@
 """
-PIC HTTP Bridge - lightweight verification server for non-Python integrations.
+PIC HTTP Bridge – lightweight verification server for non-Python integrations.
 
 Wraps ``evaluate_pic_for_tool_call()`` from the MCP guard module and exposes
 it over HTTP so that TypeScript / Go / etc. consumers can verify PIC proposals
@@ -8,10 +8,10 @@ without shelling out to ``pic-cli``.
 Endpoints
 ---------
 POST /verify
-    Body: {"tool_name": "<name>", "tool_args": {"__pic": {...}, ...}}
+    Body: {"tool_name": "<name>", "tool_args": {"__pic": {…}, …}}
     Headers: X-Request-ID (optional)
     200:  {"allowed": true,  "error": null,          "eval_ms": <int>, "request_id": "<UUID>"}
-    200:  {"allowed": false, "error": {"code": "...", "message": "..."}, "eval_ms": <int>, "request_id": "<UUID>"}
+    200:  {"allowed": false, "error": {"code": "…", "message": "…"}, "eval_ms": <int>, "request_id": "<UUID>"}
 
 GET  /health
     200:  {"status": "ok", "request_id": "<UUID>"}
@@ -21,11 +21,11 @@ GET  /v1/version
 
 Design notes
 ------------
-* stdlib only - no Flask / FastAPI dependency.
-* Fail-closed - any internal error returns ``allowed: false``.
+* stdlib only – no Flask / FastAPI dependency.
+* Fail-closed – any internal error returns ``allowed: false``.
 * Binds to 127.0.0.1 by default (localhost-only for security).
 * Reuses the battle-tested ``evaluate_pic_for_tool_call`` pipeline
-  (limits -> schema -> verifier -> tool-binding -> evidence -> time-budget).
+  (limits → schema → verifier → tool-binding → evidence → time-budget).
 * X-Request-ID header: if provided in request, echoed back in response.
   If not provided, a UUID is generated and included in response.
 * Audit logging: one JSON line per decision to the audit logger (pic_standard.audit)
@@ -42,8 +42,8 @@ import time
 import uuid
 from datetime import datetime, timezone
 from functools import lru_cache
-from http.server import BaseHTTPRequestHandler, HTTPServer
 from importlib import metadata
+from http.server import HTTPServer, BaseHTTPRequestHandler
 from pathlib import Path
 from typing import Any, Dict, Optional
 
@@ -63,15 +63,14 @@ PIC_VERSION = "1.0"
 # version field that can be surfaced by the bridge.
 POLICY_VERSION = "1.0"
 
-# Maximum request body size (1MB) to prevent memory exhaustion attacks.
+# Maximum request body size (1MB) to prevent memory exhaustion attacks
 MAX_REQUEST_BYTES = 1024 * 1024
 
-# Socket read timeout (seconds) to prevent slow/malicious clients from hanging.
+# Socket read timeout (seconds) to prevent slow/malicious clients from hanging the server
 READ_TIMEOUT_SECS = 5.0
 
 MAX_REQUEST_ID_LEN = 128
 REQUEST_ID_RE = re.compile(r"^[A-Za-z0-9._:-]+$")
-
 
 # ------------------------------------------------------------------
 # Request / response helpers
@@ -164,7 +163,8 @@ def _read_json_body(handler: BaseHTTPRequestHandler) -> Dict[str, Any]:
         log.warning("Oversized request body: %d bytes (max %d)", length, MAX_REQUEST_BYTES)
         raise ValueError(f"Request body too large: {length} bytes (max {MAX_REQUEST_BYTES})")
 
-    # Apply a socket read timeout in case fewer bytes arrive than Content-Length.
+    # Set socket timeout to prevent hanging on slow/malicious clients
+    # that send fewer bytes than Content-Length claims
     original_timeout = handler.connection.gettimeout()
     try:
         handler.connection.settimeout(READ_TIMEOUT_SECS)
@@ -224,7 +224,7 @@ def handle_verify(
     """
     Run PIC verification and return a structured response dict.
 
-    Always returns - never raises.
+    Always returns – never raises.
     """
     if request_id is None:
         request_id = _generate_request_id()
@@ -334,10 +334,7 @@ def handle_verify(
         )
         result = {
             "allowed": False,
-            "error": {
-                "code": PICErrorCode.INTERNAL_ERROR.value,
-                "message": "Internal verification error",
-            },
+            "error": {"code": PICErrorCode.INTERNAL_ERROR.value, "message": "Internal verification error"},
             "eval_ms": eval_ms,
             "request_id": request_id,
         }
@@ -361,7 +358,7 @@ class PICBridgeHandler(BaseHTTPRequestHandler):
     Server-level config is stored on the *server* instance (see ``start_bridge``).
     """
 
-    # Suppress default stderr logging per request (we use our own logger).
+    # Suppress default stderr logging per request (we use our own logger)
     def log_message(self, fmt: str, *args: Any) -> None:  # type: ignore[override]
         log.debug(fmt, *args)
 
@@ -378,7 +375,6 @@ class PICBridgeHandler(BaseHTTPRequestHandler):
         if self.path.rstrip("/") == "/health":
             _json_response(self, 200, {"status": "ok", "request_id": request_id}, request_id=request_id)
             return
-
         if self.path.rstrip("/") == "/v1/version":
             _json_response(
                 self,
@@ -393,7 +389,6 @@ class PICBridgeHandler(BaseHTTPRequestHandler):
                 request_id=request_id,
             )
             return
-
         _json_response(self, 404, {"error": "Not found", "request_id": request_id}, request_id=request_id)
 
     def do_POST(self) -> None:
@@ -406,6 +401,7 @@ class PICBridgeHandler(BaseHTTPRequestHandler):
         try:
             body = _read_json_body(self)
         except ValueError as e:
+            # Specific validation errors (missing header, too large, etc.)
             _json_response(
                 self,
                 400,
@@ -428,15 +424,13 @@ class PICBridgeHandler(BaseHTTPRequestHandler):
             )
             return
         except Exception:
+            # JSON parse errors or unexpected issues
             _json_response(
                 self,
                 400,
                 {
                     "allowed": False,
-                    "error": {
-                        "code": PICErrorCode.INVALID_REQUEST.value,
-                        "message": "Malformed or non-JSON body",
-                    },
+                    "error": {"code": PICErrorCode.INVALID_REQUEST.value, "message": "Malformed or non-JSON body"},
                     "eval_ms": 0,
                     "request_id": request_id,
                 },
@@ -482,7 +476,6 @@ class PICBridgeHandler(BaseHTTPRequestHandler):
 # Server with config
 # ------------------------------------------------------------------
 
-
 class PICBridgeServer(HTTPServer):
     """HTTPServer subclass that holds PIC configuration."""
 
@@ -508,7 +501,6 @@ class PICBridgeServer(HTTPServer):
 # Public entry point
 # ------------------------------------------------------------------
 
-
 def start_bridge(
     *,
     host: str = "127.0.0.1",
@@ -525,11 +517,11 @@ def start_bridge(
     Parameters
     ----------
     host : str
-        Bind address. Defaults to ``127.0.0.1`` (localhost-only).
+        Bind address.  Defaults to ``127.0.0.1`` (localhost-only).
     port : int
-        Listen port. Defaults to ``7580``.
+        Listen port.  Defaults to ``7580``.
     policy : PICPolicy | None
-        Tool-impact policy. When ``None``, loaded via ``load_policy()``.
+        Tool-impact policy.  When ``None``, loaded via ``load_policy()``.
 
     Notes
     -----
@@ -558,3 +550,4 @@ def start_bridge(
         log.info("PIC HTTP bridge shutting down")
     finally:
         server.server_close()
+        

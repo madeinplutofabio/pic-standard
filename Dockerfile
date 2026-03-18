@@ -4,10 +4,6 @@ ENV PYTHONUNBUFFERED=1 \
     PYTHONDONTWRITEBYTECODE=1 \
     PIP_NO_CACHE_DIR=1
 
-RUN apt-get update \
-    && apt-get install -y --no-install-recommends curl \
-    && rm -rf /var/lib/apt/lists/*
-
 RUN groupadd --gid 10001 pic \
     && useradd --uid 10001 --gid 10001 --create-home --shell /usr/sbin/nologin pic
 
@@ -23,7 +19,7 @@ USER pic
 EXPOSE 7580
 
 HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
-    CMD curl -fsS http://localhost:7580/health || exit 1
+    CMD ["python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:7580/health')"]
 
 ENTRYPOINT ["pic-cli", "serve"]
 CMD ["--host", "0.0.0.0", "--port", "7580", "--repo-root", "/workspace"]
