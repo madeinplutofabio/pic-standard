@@ -12,14 +12,7 @@ services:
     volumes:
       - ./pic_policy.json:/config/pic_policy.json:ro
       - ./pic_keys.example.json:/config/pic_keys.json:ro
-      - ./:/workspace:ro
-    command:
-      - "--host"
-      - "0.0.0.0"
-      - "--port"
-      - "7580"
-      - "--repo-root"
-      - "/workspace"
+      - ./sdk-python:/workspace:ro
     healthcheck:
       test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:7580/health')"]
       interval: 30s

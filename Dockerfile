@@ -1,4 +1,9 @@
-FROM python:3.12-slim
+# Pinned on 2026-04-01 for reproducible builds.
+FROM python:3.12-slim@sha256:3d5ed973e45820f5ba5e46bd065bd88b3a504ff0724d85980dcd05eab361fcf4
+
+LABEL org.opencontainers.image.source="https://github.com/madeinplutofabio/pic-standard" \
+    org.opencontainers.image.description="PIC Standard HTTP Bridge" \
+    org.opencontainers.image.licenses="Apache-2.0"
 
 ENV PYTHONUNBUFFERED=1 \
     PYTHONDONTWRITEBYTECODE=1 \
@@ -9,10 +14,13 @@ RUN groupadd --gid 10001 pic \
 
 WORKDIR /app
 
-COPY . /app
+COPY pyproject.toml README.md LICENSE /app/
+COPY sdk-python /app/sdk-python
 
 RUN pip install --upgrade pip setuptools wheel \
     && pip install ".[langgraph,mcp,crypto]"
+
+COPY . /app
 
 USER pic
 

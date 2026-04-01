@@ -550,4 +550,3 @@ def start_bridge(
         log.info("PIC HTTP bridge shutting down")
     finally:
         server.server_close()
-        
