@@ -1,7 +1,8 @@
 from __future__ import annotations
 
-from dataclasses import dataclass
-from typing import Any, Dict
+from dataclasses import dataclass, field
+from pathlib import Path
+from typing import Any, Dict, Optional
 
 from langchain_core.messages import AIMessage, ToolMessage
 from langchain_core.tools import BaseTool
@@ -28,9 +29,17 @@ class PICToolNode:
     """
 
     tools: list[BaseTool]
+    policy: Any = None
+    verify_evidence: bool = False
+    strict_trust: bool = False
+    key_resolver: Any = None
+    proposal_base_dir: Optional[Path] = None
+    evidence_root_dir: Optional[Path] = None
+
+    _tools_by_name: Dict[str, BaseTool] = field(init=False, repr=False)
 
     def __post_init__(self) -> None:
-        self._tools_by_name: Dict[str, BaseTool] = {t.name: t for t in self.tools}
+        self._tools_by_name = {t.name: t for t in self.tools}
 
     def invoke(self, state: Dict[str, Any]) -> Dict[str, Any]:
         messages = state.get("messages", [])
@@ -71,7 +80,19 @@ class PICToolNode:
                 )
 
             # Enforce PIC BEFORE calling the tool (delegates to shared pipeline)
-            result = verify_proposal(proposal, options=PipelineOptions(expected_tool=name))
+            result = verify_proposal(
+                proposal,
+                options=PipelineOptions(
+                    tool_name=name,
+                    expected_tool=name,
+                    policy=self.policy,
+                    verify_evidence=self.verify_evidence,
+                    strict_trust=self.strict_trust,
+                    key_resolver=self.key_resolver,
+                    proposal_base_dir=self.proposal_base_dir,
+                    evidence_root_dir=self.evidence_root_dir,
+                ),
+            )
             if not result.ok:
                 msg = result.error.message if result.error else "PIC verification failed"
                 code = result.error.code.value if result.error else "PIC_INTERNAL_ERROR"

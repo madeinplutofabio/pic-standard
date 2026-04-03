@@ -3,7 +3,9 @@
 **Local-first action gating for AI agents. Verify intent, provenance, and evidence before any high-impact tool call executes.**
 
 [![PyPI version](https://img.shields.io/pypi/v/pic-standard.svg?logo=pypi&logoColor=white)](https://pypi.org/project/pic-standard/)
+[![PyPI downloads](https://img.shields.io/pypi/dm/pic-standard.svg?logo=pypi&logoColor=white)](https://pypi.org/project/pic-standard/)
 [![CI](https://github.com/madeinplutofabio/pic-standard/actions/workflows/ci.yml/badge.svg)](https://github.com/madeinplutofabio/pic-standard/actions/workflows/ci.yml)
+[![Last commit](https://img.shields.io/github/last-commit/madeinplutofabio/pic-standard)](https://github.com/madeinplutofabio/pic-standard/commits/main)
 [![GitHub stars](https://img.shields.io/github/stars/madeinplutofabio/pic-standard?style=social)](https://github.com/madeinplutofabio/pic-standard)
 [![License](https://img.shields.io/github/license/madeinplutofabio/pic-standard)](https://github.com/madeinplutofabio/pic-standard/blob/main/LICENSE)
 
@@ -52,11 +54,16 @@ pip install pic-standard
 
 # Verify an example proposal
 pic-cli verify examples/financial_irreversible.json
-# Schema valid
-# Verifier passed
 
-# Evidence-aware verification (hash + signature)
-pic-cli verify examples/financial_sig_ok.json --verify-evidence
+# Evidence-aware verification (hash)
+pic-cli verify examples/financial_hash_ok.json --verify-evidence
+
+# Evidence-aware verification (signature — requires example keyring)
+# macOS / Linux
+PIC_KEYS_PATH=pic_keys.example.json pic-cli verify examples/financial_sig_ok.json --verify-evidence
+# PowerShell
+# $env:PIC_KEYS_PATH="pic_keys.example.json"
+# pic-cli verify examples/financial_sig_ok.json --verify-evidence
 ```
 
 **Optional extras:**
@@ -120,8 +127,12 @@ Ed25519 signature verification requires `pip install "pic-standard[crypto]"`.
 # Verify hash evidence
 pic-cli verify examples/financial_hash_ok.json --verify-evidence
 
-# Verify signature evidence
-pic-cli verify examples/financial_sig_ok.json --verify-evidence
+# Verify signature evidence (requires keyring)
+# macOS / Linux
+PIC_KEYS_PATH=pic_keys.example.json pic-cli verify examples/financial_sig_ok.json --verify-evidence
+# PowerShell
+# $env:PIC_KEYS_PATH="pic_keys.example.json"
+# pic-cli verify examples/financial_sig_ok.json --verify-evidence
 ```
 
 Full guide: [docs/evidence.md](docs/evidence.md)
@@ -141,6 +152,8 @@ pic-cli keys --write-example        # Generate starter keyring
 from pic_standard import KeyResolver, StaticKeyRingResolver
 ```
 
+**Trust controls (v0.7.5+):** PIC v0.7.5 introduces `strict_trust` mode — when enabled, all inbound provenance trust is sanitized to "untrusted" and only evidence verification can upgrade it. See [docs/migration-trust-sanitization.md](docs/migration-trust-sanitization.md) for migration guide.
+
 Full guide: [docs/keyring.md](docs/keyring.md)
 
 ---
@@ -153,7 +166,7 @@ Guard any tool node with `PICToolNode`:
 ```bash
 pip install "pic-standard[langgraph]"
 ```
-Full guide: [docs/langgraph-integration.md](docs/langgraph-integration.md)
+`PICToolNode` now accepts `verify_evidence`, `strict_trust`, `policy`, and `key_resolver` for full pipeline configuration (v0.7.5+).
 
 ---
 
@@ -214,6 +227,7 @@ Verify locally: `sha256sum -c docs/RFC-0001.SHA256`
 - [x] Evidence verification (SHA-256 hash + Ed25519 signatures)
 - [x] Anchor integrations (LangGraph, MCP, OpenClaw, Cordum)
 - [x] Injectable key resolution + hot path fix (v0.7)
+- [x] Trust hardening + attestation object draft (v0.7.5)
 - [ ] Canonicalization spec (PIC Canonical JSON v1)
 - [ ] Conformance suite with cross-implementation test vectors
 - [ ] Normative semantics (MUST/SHOULD spec document)
@@ -231,7 +245,7 @@ We're actively seeking:
 - Framework authors to build native integrations
 - Enterprise architects to define domain Impact Classes
 
-Good first contribution areas right now: canonicalization spec, conformance vectors, OpenAPI spec, and TS verifier groundwork.
+Good first contribution areas right now: conformance vectors, OpenAPI spec, TS verifier groundwork, and security review of trust sanitization behavior.
 
 If you find PIC useful, please consider giving us a star on GitHub: it helps attract more security experts and framework authors into the community.
 

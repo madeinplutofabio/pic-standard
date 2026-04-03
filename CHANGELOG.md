@@ -5,6 +5,33 @@ All notable changes to this project will be documented in this file.
 This project follows Semantic Versioning:
 https://semver.org/
 
+## [0.7.5] - 2026-04-03
+
+### Added
+- **`strict_trust` pipeline option**: new `PipelineOptions.strict_trust` (default `False`).
+  When enabled, all inbound `provenance[].trust` values are sanitized to `"untrusted"`
+  before verification. Evidence verification is the only path to trusted status.
+- **Trust deprecation warning**: when a proposal declares `trust:"trusted"` but
+  effective evidence verification will not run for that proposal, a
+  `PICTrustFutureWarning` is emitted with migration guidance. In PIC/1.0,
+  non-sanitizing mode will be legacy and non-conformant.
+- **Attestation Object v1 draft**: `docs/attestation-object-draft.md` — non-normative
+  design document for the canonical minimal signing target (community feedback welcome).
+- **Migration guide**: `docs/migration-trust-sanitization.md` — step-by-step guide for
+  migrating from self-asserted trust to evidence-backed trust.
+- `strict_trust` and `key_resolver` parameters in `guard_mcp_tool()`,
+  `guard_mcp_tool_async()`, and `PICToolNode` for integration-level opt-in.
+
+### Changed
+- **Pipeline refactor**: `verify_proposal()` now finalizes trust state (sanitization +
+  evidence verification + trust upgrade) before `ActionProposal` instantiation. This
+  removes duplicate instantiation/binding and ensures `strict_trust=True` works correctly
+  with evidence-backed proposals.
+- `PICToolNode` constructor now accepts `verify_evidence`, `strict_trust`, `key_resolver`,
+  `policy`, `proposal_base_dir`, and `evidence_root_dir` for full pipeline configuration.
+
+---
+
 ## [0.7.1] - 2026-03-18
 
 ### Fixed
