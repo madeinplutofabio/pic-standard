@@ -12,11 +12,12 @@ from __future__ import annotations
 import json
 import logging
 import time
+import warnings
 from dataclasses import dataclass
 from functools import lru_cache
 from importlib import resources
 from pathlib import Path
-from typing import Any, Dict, Optional, Tuple
+from typing import Any, Dict, List, Optional, Tuple
 
 from jsonschema import ValidationError as JSValidationError
 from jsonschema import validate as js_validate
@@ -36,6 +37,20 @@ except ImportError:  # pragma: no cover
     apply_verified_ids_to_provenance = None  # type: ignore[assignment]
 
 log = logging.getLogger("pic_standard.pipeline")
+
+
+# ------------------------------------------------------------------
+# v0.8: Trust deprecation warning
+# ------------------------------------------------------------------
+
+class PICTrustFutureWarning(FutureWarning):
+    """Emitted when a proposal contains self-asserted trusted provenance and
+    effective evidence verification will not run for that proposal.
+
+    In PIC/1.0, non-sanitizing mode (``strict_trust=False``) will be legacy
+    and non-conformant.  This warning signals the migration path.
+    """
+    pass
 
 
 # ------------------------------------------------------------------
@@ -115,6 +130,7 @@ class PipelineOptions:
     evidence_root_dir: Optional[Path] = None
     time_budget_ms: Optional[int] = None           # None = no budget; falls back to limits.max_eval_ms
     key_resolver: Any = None                       # Optional[KeyResolver] — Any to avoid import issues when crypto missing
+    strict_trust: bool = False                     # v0.8: sanitize inbound trust to "untrusted"
 
 
 @dataclass
@@ -129,7 +145,7 @@ class PipelineResult:
 
 
 # ------------------------------------------------------------------
-# Private helpers (deduplicated — used pre-evidence and post-upgrade)
+# Private helpers
 # ------------------------------------------------------------------
 
 def _instantiate_action_proposal(
@@ -166,6 +182,174 @@ def _verify_tool_binding(
 
 
 # ------------------------------------------------------------------
+# v0.8: Trust resolution helpers
+# ------------------------------------------------------------------
+
+def _resolve_impact(
+    proposal: Dict[str, Any], opts: PipelineOptions,
+) -> Optional[str]:
+    """Resolve effective impact using policy if available, else proposal impact."""
+    tool_for_policy = opts.tool_name or opts.expected_tool
+    proposal_impact = proposal.get("impact")
+
+    if opts.policy and tool_for_policy:
+        impact: Optional[str] = opts.policy.get_tool_impact(
+            tool_for_policy, proposal_impact=proposal_impact,
+        )
+    else:
+        impact = proposal_impact
+
+    # Normalize enum-like impacts to strings for comparisons / serialization
+    if hasattr(impact, "value"):
+        impact = impact.value
+
+    return impact
+
+
+def _required_evidence_impacts(policy: Optional[PICPolicy]) -> set[str]:
+    """Return normalized set of impacts for which policy requires evidence."""
+    if not policy:
+        return set()
+    return {
+        i.value if hasattr(i, "value") else str(i)
+        for i in (policy.require_evidence_for_impacts or [])
+    }
+
+
+def _has_self_asserted_trusted_provenance(proposal: Dict[str, Any]) -> bool:
+    """True if any inbound provenance entry claims trust='trusted'."""
+    prov = proposal.get("provenance") or []
+    return any(isinstance(p, dict) and p.get("trust") == "trusted" for p in prov)
+
+
+def _sanitize_provenance_trust(proposal: Dict[str, Any]) -> Dict[str, Any]:
+    """Return a copy of proposal with all provenance trust rewritten to 'untrusted'.
+
+    Does not mutate caller input.
+    """
+    prov = proposal.get("provenance") or []
+    if not any(isinstance(p, dict) and p.get("trust") != "untrusted" for p in prov):
+        return proposal
+
+    out = dict(proposal)
+    out["provenance"] = [
+        {**p, "trust": "untrusted"} if isinstance(p, dict) else p
+        for p in prov
+    ]
+    return out
+
+
+def _should_verify_evidence(
+    proposal: Dict[str, Any],
+    *,
+    impact: Optional[str],
+    opts: PipelineOptions,
+) -> Tuple[bool, bool]:
+    """Return (should_verify, evidence_required_by_policy).
+
+    Evidence verification actually runs only when:
+      - ``verify_evidence=True``, AND
+      - evidence entries are present OR policy requires evidence for resolved impact
+    """
+    evidence_entries = proposal.get("evidence") or []
+    require_for = _required_evidence_impacts(opts.policy)
+    evidence_required_by_policy = bool(impact and impact in require_for)
+
+    should_verify = bool(
+        opts.verify_evidence
+        and (evidence_required_by_policy or bool(evidence_entries))
+    )
+    return should_verify, evidence_required_by_policy
+
+
+def _should_warn_on_self_asserted_trust(
+    proposal: Dict[str, Any],
+    *,
+    opts: PipelineOptions,
+    should_verify_evidence: bool,
+) -> bool:
+    """Warn when self-asserted trusted provenance is present and effective
+    evidence verification will not run for this proposal.
+    """
+    if opts.strict_trust:
+        return False
+    if not _has_self_asserted_trusted_provenance(proposal):
+        return False
+    return not should_verify_evidence
+
+
+def _make_evidence_system(opts: PipelineOptions) -> Any:
+    """Construct EvidenceSystem or raise PICError if unavailable."""
+    if EvidenceSystem is None or apply_verified_ids_to_provenance is None:
+        raise PICError(
+            code=PICErrorCode.EVIDENCE_FAILED,
+            message="Evidence verification requested but evidence module is unavailable",
+        )
+
+    es_kwargs: Dict[str, Any] = {}
+    if opts.key_resolver is not None:
+        es_kwargs["key_resolver"] = opts.key_resolver
+    return EvidenceSystem(**es_kwargs)  # type: ignore[misc]
+
+
+def _run_evidence_verification(
+    proposal: Dict[str, Any],
+    *,
+    opts: PipelineOptions,
+    impact: Optional[str],
+    tool_for_policy: Optional[str],
+) -> Tuple[Optional[Any], Optional[Dict[str, Any]], Optional[PICError]]:
+    """Verify evidence and return (evidence_report, upgraded_proposal, error).
+
+    ``upgraded_proposal`` is the trust-upgraded copy when verification succeeds.
+    On error, ``upgraded_proposal`` is ``None``.
+    """
+    should_verify, evidence_required_by_policy = _should_verify_evidence(
+        proposal, impact=impact, opts=opts,
+    )
+
+    if not should_verify:
+        return None, proposal, None
+
+    try:
+        es = _make_evidence_system(opts)
+    except PICError as e:
+        return None, None, e
+
+    base_dir = opts.proposal_base_dir or Path(".").resolve()
+    root_dir = opts.evidence_root_dir or base_dir
+
+    evidence_report = es.verify_all(  # type: ignore[union-attr]
+        proposal, base_dir=base_dir, evidence_root_dir=root_dir,
+    )
+
+    if evidence_required_by_policy and not evidence_report.results:
+        return evidence_report, None, PICError(
+            code=PICErrorCode.EVIDENCE_REQUIRED,
+            message="Evidence required for this impact but no evidence entries were provided",
+            details={"tool": tool_for_policy, "impact": impact},
+        )
+
+    if not evidence_report.ok:
+        failed: List[Dict[str, Any]] = [
+            {"id": r.id, "message": r.message}
+            for r in evidence_report.results
+            if not r.ok
+        ]
+        return evidence_report, None, PICError(
+            code=PICErrorCode.EVIDENCE_FAILED,
+            message="Evidence verification failed",
+            details={"failed": failed},
+        )
+
+    # Trust upgrade — returns new dict, does not mutate caller input
+    upgraded = apply_verified_ids_to_provenance(  # type: ignore[misc]
+        proposal, evidence_report.verified_ids,
+    )
+    return evidence_report, upgraded, None
+
+
+# ------------------------------------------------------------------
 # Core pipeline: the ONE function conformance tests target
 # ------------------------------------------------------------------
 
@@ -178,13 +362,16 @@ def verify_proposal(
     Run the full PIC verification pipeline.
 
     Pipeline steps (in order):
-      1. Limits check (skip if ``options.limits`` is None)
-      2. JSON Schema validation
-      3. Resolve impact (policy + proposal, falls back to expected_tool)
-      4. ``ActionProposal`` instantiation (pydantic + PIC rules)
-      5. Tool binding via ``verify_with_context`` (skip if ``expected_tool`` is None)
-      6. Evidence verification — gated by impact + policy OR presence of evidence entries
-      7. Time budget check (effective_budget_ms from time_budget_ms or limits.max_eval_ms)
+      1.  Limits check (skip if ``options.limits`` is None)
+      2.  JSON Schema validation
+      3.  Resolve impact (policy + proposal, falls back to expected_tool)
+      4.  Determine whether evidence verification will actually run
+      5.  Emit migration warning if legacy self-asserted trust would be accepted
+      6.  Build working proposal (sanitize trust when ``strict_trust=True``)
+      7.  Optional evidence verification + trust upgrade
+      8.  Final ``ActionProposal`` instantiation (pydantic + PIC rules)
+      9.  Tool binding via ``verify_with_context`` (skip if ``expected_tool`` is None)
+     10.  Time budget check
 
     Returns ``PipelineResult`` — **never raises**.
     """
@@ -212,95 +399,65 @@ def verify_proposal(
                 message=f"PIC schema validation failed: {e.message}",
             ))
 
-        # 3. Resolve impact (fall back to expected_tool for LangGraph)
+        # 3. Resolve impact
+        impact = _resolve_impact(proposal, opts)
         tool_for_policy = opts.tool_name or opts.expected_tool
-        proposal_impact = proposal.get("impact")
-        if opts.policy and tool_for_policy:
-            impact: Optional[str] = opts.policy.get_tool_impact(
-                tool_for_policy, proposal_impact=proposal_impact,
-            )
-        else:
-            impact = proposal_impact
-        # Normalize enum-like impacts to strings for comparisons / serialization
-        if hasattr(impact, "value"):
-            impact = impact.value
 
-        # 4. ActionProposal instantiation (pydantic + verifier rules)
-        ap, err = _instantiate_action_proposal(proposal)
+        # 4. Determine whether evidence verification will actually run
+        should_verify, _ = _should_verify_evidence(
+            proposal, impact=impact, opts=opts,
+        )
+
+        # 5. Migration warning for legacy trust behavior (v0.8+)
+        if _should_warn_on_self_asserted_trust(
+            proposal, opts=opts, should_verify_evidence=should_verify,
+        ):
+            warnings.warn(
+                "PIC deprecation: proposal contains provenance with trust='trusted' "
+                "but effective evidence verification will not run for this proposal. "
+                "In PIC/1.0, trust will be verifier-derived only — self-asserted "
+                "trust will be sanitized to 'untrusted'. "
+                "To migrate: provide verifiable evidence (hash or signature) and "
+                "enable verify_evidence=True where evidence will actually be enforced, "
+                "or opt in early with strict_trust=True. "
+                "See docs/migration-trust-sanitization.md for details.",
+                PICTrustFutureWarning,
+                stacklevel=2,
+            )
+
+        # 6. Build working proposal for this run
+        working_proposal = (
+            _sanitize_provenance_trust(proposal) if opts.strict_trust else proposal
+        )
+
+        # 7. Optional evidence verification + trust upgrade
+        evidence_report = None
+        final_proposal = working_proposal
+
+        if opts.verify_evidence:
+            evidence_report, upgraded, ev_err = _run_evidence_verification(
+                working_proposal,
+                opts=opts,
+                impact=impact,
+                tool_for_policy=tool_for_policy,
+            )
+            if ev_err is not None:
+                return _fail(ev_err, impact=impact)
+            if upgraded is not None:
+                final_proposal = upgraded
+
+        # 8. Final semantic validation from finalized trust state
+        ap, err = _instantiate_action_proposal(final_proposal)
         if err is not None:
             return _fail(err, impact=impact)
 
-        # 5. Tool binding
+        # 9. Tool binding
         if opts.expected_tool is not None:
             bind_err = _verify_tool_binding(ap, opts.expected_tool)  # type: ignore[arg-type]
             if bind_err is not None:
                 return _fail(bind_err, impact=impact)
 
-        # 6. Evidence verification
-        evidence_report = None
-        if opts.verify_evidence:
-            evidence_entries = proposal.get("evidence") or []
-
-            # Normalize policy set (enum safety)
-            require_for: set[str] = set()
-            if opts.policy:
-                require_for = {
-                    i.value if hasattr(i, "value") else i
-                    for i in (opts.policy.require_evidence_for_impacts or [])
-                }
-
-            evidence_required_by_policy = bool(impact and impact in require_for)
-            should_verify = evidence_required_by_policy or bool(evidence_entries)
-
-            if should_verify:
-                if EvidenceSystem is None or apply_verified_ids_to_provenance is None:
-                    return _fail(PICError(
-                        code=PICErrorCode.EVIDENCE_FAILED,
-                        message="Evidence verification requested but evidence module is unavailable",
-                    ), impact=impact)
-
-                es_kwargs: Dict[str, Any] = {}
-                if opts.key_resolver is not None:
-                    es_kwargs["key_resolver"] = opts.key_resolver
-                es = EvidenceSystem(**es_kwargs)  # type: ignore[misc]
-                base_dir = opts.proposal_base_dir or Path(".").resolve()
-                root_dir = opts.evidence_root_dir or base_dir
-
-                evidence_report = es.verify_all(  # type: ignore[union-attr]
-                    proposal, base_dir=base_dir, evidence_root_dir=root_dir,
-                )
-
-                # EVIDENCE_REQUIRED only when policy mandates it AND no entries
-                if evidence_required_by_policy and not evidence_report.results:
-                    return _fail(PICError(
-                        code=PICErrorCode.EVIDENCE_REQUIRED,
-                        message="Evidence required for this impact but no evidence entries were provided",
-                        details={"tool": tool_for_policy, "impact": impact},
-                    ), impact=impact)
-
-                if not evidence_report.ok:
-                    failed = [{"id": r.id, "message": r.message} for r in evidence_report.results if not r.ok]
-                    return _fail(PICError(
-                        code=PICErrorCode.EVIDENCE_FAILED,
-                        message="Evidence verification failed",
-                        details={"failed": failed},
-                    ), impact=impact)
-
-                # Trust upgrade + re-verify
-                # Returns new dict — does not mutate caller's proposal
-                upgraded = apply_verified_ids_to_provenance(proposal, evidence_report.verified_ids)
-
-                ap, err = _instantiate_action_proposal(upgraded)
-                if err is not None:
-                    return _fail(err, impact=impact)
-
-                # Re-verify tool binding on upgraded proposal
-                if opts.expected_tool is not None:
-                    bind_err = _verify_tool_binding(ap, opts.expected_tool)  # type: ignore[arg-type]
-                    if bind_err is not None:
-                        return _fail(bind_err, impact=impact)
-
-        # 7. Time budget check (effective budget: explicit > limits.max_eval_ms)
+        # 10. Time budget check (effective budget: explicit > limits.max_eval_ms)
         eval_ms = _elapsed_ms()
         effective_budget_ms = opts.time_budget_ms
         if effective_budget_ms is None and opts.limits is not None:

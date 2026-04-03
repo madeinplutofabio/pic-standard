@@ -93,6 +93,8 @@ def evaluate_pic_for_tool_call(
     proposal_base_dir: Optional[Path] = None,
     evidence_root_dir: Optional[Path] = None,
     request_id: Optional[str] = None,
+    strict_trust: bool = False,
+    key_resolver: Any = None,
 ) -> Tuple[Optional["ActionProposal"], Dict[str, Any]]:
     """
     Evaluate PIC for a tool call. Fail-closed via PICError.
@@ -148,6 +150,8 @@ def evaluate_pic_for_tool_call(
         verify_evidence=verify_evidence,
         proposal_base_dir=proposal_base_dir,
         evidence_root_dir=evidence_root_dir,
+        strict_trust=strict_trust,
+        key_resolver=key_resolver,
     ))
 
     if not result.ok:
@@ -197,6 +201,8 @@ def guard_mcp_tool(
     verify_evidence: bool = False,
     proposal_base_dir: Optional[Path] = None,
     evidence_root_dir: Optional[Path] = None,
+    strict_trust: bool = False,
+    key_resolver: Any = None,
 ) -> Callable[..., Any]:
     """
     Wrap a *sync* tool function with PIC enforcement.
@@ -222,6 +228,8 @@ def guard_mcp_tool(
                 proposal_base_dir=proposal_base_dir,
                 evidence_root_dir=evidence_root_dir,
                 request_id=request_id,
+                strict_trust=strict_trust,
+                key_resolver=key_resolver,
             )
             # Remove PIC meta before calling business tool
             kwargs.pop("__pic", None)
@@ -267,6 +275,8 @@ def guard_mcp_tool_async(
     proposal_base_dir: Optional[Path] = None,
     evidence_root_dir: Optional[Path] = None,
     max_tool_ms: Optional[int] = None,
+    strict_trust: bool = False,
+    key_resolver: Any = None,
 ) -> Callable[..., Awaitable[Any]]:
     """
     Wrap an *async* tool function with PIC enforcement + optional tool timeout.
@@ -291,6 +301,8 @@ def guard_mcp_tool_async(
                 proposal_base_dir=proposal_base_dir,
                 evidence_root_dir=evidence_root_dir,
                 request_id=request_id,
+                strict_trust=strict_trust,
+                key_resolver=key_resolver,
             )
             kwargs.pop("__pic", None)
             kwargs.pop("__pic_request_id", None)

@@ -1,10 +1,16 @@
 from __future__ import annotations
 
+import asyncio
+
 from pic_standard.policy import PICPolicy
-from pic_standard.integrations.mcp_pic_guard import guard_mcp_tool
+from pic_standard.integrations.mcp_pic_guard import guard_mcp_tool, guard_mcp_tool_async
 
 
 def _tool(amount: int) -> str:
+    return f"sent ${amount}"
+
+
+async def _async_tool(amount: int) -> str:
     return f"sent ${amount}"
 
 
@@ -101,3 +107,106 @@ def test_mcp_guard_leaks_internal_exception_details_when_debug(monkeypatch):
     details = err.get("details") or {}
     assert details.get("exception_type") == "RuntimeError"
     assert "leak-me" in (details.get("exception") or "")
+
+
+# ---------------------------------------------------------------------------
+# v0.8: strict_trust + key_resolver passthrough tests
+# ---------------------------------------------------------------------------
+
+
+def test_guard_sync_strict_trust_blocks_self_asserted_trust():
+    """strict_trust=True via guard_mcp_tool → pipeline sanitizes trust → blocked."""
+    policy = PICPolicy(impact_by_tool={"payments_send": "money"})
+    wrapped = guard_mcp_tool(
+        "payments_send", _tool, policy=policy,
+        verify_evidence=False, strict_trust=True,
+    )
+
+    out = wrapped(amount=500, __pic=_proposal("trusted"))
+    assert isinstance(out, dict)
+    assert out.get("isError") is True
+    err = out.get("error") or {}
+    assert err.get("code", "").startswith("PIC_")
+
+
+def test_guard_async_strict_trust_blocks_self_asserted_trust():
+    """strict_trust=True via guard_mcp_tool_async → pipeline sanitizes trust → blocked."""
+    policy = PICPolicy(impact_by_tool={"payments_send": "money"})
+    wrapped = guard_mcp_tool_async(
+        "payments_send", _async_tool, policy=policy,
+        verify_evidence=False, strict_trust=True,
+    )
+
+    out = asyncio.run(wrapped(amount=500, __pic=_proposal("trusted")))
+    assert isinstance(out, dict)
+    assert out.get("isError") is True
+    err = out.get("error") or {}
+    assert err.get("code", "").startswith("PIC_")
+
+
+def test_guard_sync_passes_key_resolver(monkeypatch):
+    """Prove key_resolver is threaded from guard_mcp_tool through to PipelineOptions."""
+    captured = {}
+
+    def fake_verify_proposal(proposal, *, options):
+        captured["key_resolver"] = options.key_resolver
+
+        class Result:
+            ok = True
+            action_proposal = None
+            evidence_report = None
+            impact = "money"
+            eval_ms = 0
+            error = None
+
+        return Result()
+
+    monkeypatch.setattr(
+        "pic_standard.integrations.mcp_pic_guard.verify_proposal",
+        fake_verify_proposal,
+    )
+
+    resolver = object()
+    policy = PICPolicy(impact_by_tool={"payments_send": "money"})
+    wrapped = guard_mcp_tool(
+        "payments_send", _tool, policy=policy,
+        key_resolver=resolver,
+    )
+
+    out = wrapped(amount=500, __pic=_proposal("trusted"))
+    assert out["isError"] is False
+    assert captured["key_resolver"] is resolver
+
+
+def test_guard_async_passes_key_resolver(monkeypatch):
+    """Prove key_resolver is threaded from guard_mcp_tool_async through to PipelineOptions."""
+    captured = {}
+
+    def fake_verify_proposal(proposal, *, options):
+        captured["key_resolver"] = options.key_resolver
+
+        class Result:
+            ok = True
+            action_proposal = None
+            evidence_report = None
+            impact = "money"
+            eval_ms = 0
+            error = None
+
+        return Result()
+
+    monkeypatch.setattr(
+        "pic_standard.integrations.mcp_pic_guard.verify_proposal",
+        fake_verify_proposal,
+    )
+
+    resolver = object()
+    policy = PICPolicy(impact_by_tool={"payments_send": "money"})
+    wrapped = guard_mcp_tool_async(
+        "payments_send", _async_tool, policy=policy,
+        key_resolver=resolver,
+    )
+
+    out = asyncio.run(wrapped(amount=500, __pic=_proposal("trusted")))
+    assert out["isError"] is False
+    assert captured["key_resolver"] is resolver
