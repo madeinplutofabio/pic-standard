@@ -13,10 +13,4 @@ services:
       - ./pic_policy.json:/config/pic_policy.json:ro
       - ./pic_keys.example.json:/config/pic_keys.json:ro
       - ./sdk-python:/workspace:ro
-    healthcheck:
-      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:7580/health')"]
-      interval: 30s
-      timeout: 5s
-      retries: 3
-      start_period: 10s
     restart: unless-stopped
