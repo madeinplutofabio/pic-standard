@@ -14,7 +14,8 @@
 | v0.7.0 | Injectable `KeyResolver` protocol, lazy trust resolution, evidence hot path fix | None — SDK runtime behavior only |
 | v0.7.1 | Deferred integration imports, CLI import isolation, specification status note | None — packaging/docs hygiene only |
 | v0.7.5 | Trust sanitization (`strict_trust`), deprecation warning for self-asserted trust, attestation object draft, migration guide | None — behavioral option only; wire format unchanged |
+| v0.8.0 | PIC Canonical JSON v1 spec (`docs/canonicalization.md`) + reference implementation (`pic_standard.canonical`), initial canonicalization + core conformance suite, conformance runner (`python -m conformance.run`), `PIC Conformance` CI job, refined attestation object draft with byte-level worked example | None — new capability added; existing proposals and signature verification paths unchanged. Canonicalization is not yet wired into evidence signing in v0.8.0. |
 
-The PIC/1.0 proposal structure and wire-level schema have remained stable since the RFC anchor. Post-RFC changes in v0.6.x–v0.7.x primarily affected shared pipeline behavior, trust resolution, integration surface, and runtime efficiency rather than introducing a wire-format break.
+The PIC/1.0 proposal structure and wire-level schema have remained stable since the RFC anchor. Post-RFC changes in v0.6.x–v0.8.x primarily affected shared pipeline behavior, trust resolution, integration surface, runtime efficiency, and canonicalization/conformance tooling rather than introducing a wire-format break.
 
-**Current Python reference implementation:** v0.7.5
+**Current Python reference implementation:** v0.8.0

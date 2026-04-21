@@ -1,0 +1,22 @@
+{
+  "id": "core-block-001-untrusted-money",
+  "description": "Money-impact proposal with untrusted provenance and no top-level evidence entries fails the verifier under default PipelineOptions with PIC_VERIFIER_FAILED. The causal rule pinned here rejects the specific combination (money impact, provenance.trust='untrusted', no top-level evidence entries) as insufficient to proceed. Evidence-mode verification, which could change the outcome if sufficient evidence were present and verified, is out of scope here and deferred to v0.8.1+ conformance.",
+  "source": "adapted from tests/conftest.py money_proposal fixture with provenance.trust flipped from 'trusted' to 'untrusted'; provenance[0].id is kept identical to core-allow-002-trusted-money so the paired-vector diff is a single-field flip; exercises the causal rule that under default PipelineOptions, money-impact proposals with untrusted provenance and without top-level evidence entries are rejected with PIC_VERIFIER_FAILED",
+  "expected": "block",
+  "expected_error_code": "PIC_VERIFIER_FAILED",
+  "proposal": {
+    "protocol": "PIC/1.0",
+    "intent": "Send $50 to vendor for invoice #1234",
+    "impact": "money",
+    "provenance": [
+      { "id": "approved_invoice", "trust": "untrusted" }
+    ],
+    "claims": [
+      { "text": "Send $50 to vendor for invoice #1234", "evidence": ["approved_invoice"] }
+    ],
+    "action": {
+      "tool": "payments_send",
+      "args": {}
+    }
+  }
+}

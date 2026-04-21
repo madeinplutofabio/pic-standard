@@ -1,0 +1,10 @@
+{
+  "id": "canon-006-string-escaping",
+  "description": "String escaping: one value exercises all named escapes (quote, backslash, backspace, tab, newline, form feed, carriage return) plus representative unnamed controls (U+000B, U+001F) as lowercase \\u00XX escapes and an explicit solidus (U+002F) non-escape. Catches common cross-language traps: emitting a non-conformant vertical-tab named escape for U+000B, using uppercase hex in control-character escapes, and escaping forward slash.",
+  "source": "hand-verified against docs/canonicalization.md §7.2, §7.6, §7.7 and RFC 8785 §3.2.2.2, §3.2.3 by Fabio M. S., 2026-04-20",
+  "input": {
+    "s": "\"\\\b\t\n\u000b\f\r\u001f/"
+  },
+  "expected_canonical_bytes_hex": "7b2273223a225c225c5c5c625c745c6e5c75303030625c665c725c75303031662f227d",
+  "expected_sha256_hex": "19cc4db84b9c69ce9d1786a3d43c978e2bbf465fa7eadb2fe68433238a337596"
+}

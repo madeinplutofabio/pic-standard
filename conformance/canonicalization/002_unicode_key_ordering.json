@@ -1,0 +1,12 @@
+{
+  "id": "canon-002-unicode-key-ordering",
+  "description": "Object key ordering demonstrating that a BMP Unicode key (α, U+03B1) sorts after ASCII 'z' under UTF-16 code unit ordering; mirrors docs/canonicalization.md §9.2.",
+  "source": "hand-verified against docs/canonicalization.md §7.2, §7.6, §7.8, §7.9 and RFC 8785 §3.2.3 by Fabio M. S., 2026-04-20",
+  "input": {
+    "z": 1,
+    "α": 2,
+    "a": 3
+  },
+  "expected_canonical_bytes_hex": "7b2261223a332c227a223a312c22ceb1223a327d",
+  "expected_sha256_hex": "77595bc22e98fb46b3f04d1b0355e166c36d4e726ccb49fd87317887baec6e14"
+}

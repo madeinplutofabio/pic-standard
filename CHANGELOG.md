@@ -5,6 +5,39 @@ All notable changes to this project will be documented in this file.
 This project follows Semantic Versioning:
 https://semver.org/
 
+## [0.8.0] - 2026-04-20
+
+### Added
+- **PIC Canonical JSON v1 spec** — `docs/canonicalization.md` normatively defines PIC-CJSON/1.0: RFC 8785 (JSON Canonicalization Scheme) as the baseline, plus PIC-specific rules for object key ordering, string escaping, number serialization, Unicode handling, boolean/null serialization, lone-surrogate rejection, and the digest-byte rules for `args_digest`, `claims_digest`, `intent_digest`, and attestation-object signed bytes (§8.1–§8.4). Frozen for PIC-CJSON/1.0; edge cases discovered after release are spec-level discussions, not patch-level fixes.
+- **Reference canonicalization implementation** — `pic_standard.canonical` module with:
+  - `canonicalize(value) -> bytes` — PIC-CJSON/1.0 serializer, pure Python stdlib (no runtime dependencies).
+  - `sha256_hex(value) -> str` — convenience for §8.1 / §8.2 digests.
+  - `intent_digest_hex(intent) -> str` — §8.3 path: hashes raw UTF-8 bytes of the intent string, explicitly distinct from `sha256_hex` to prevent the common trap of canonicalizing bare strings.
+  - `CanonicalizationError` — PIC's own exception class, independent of the vendored dependency.
+- **Conformance suite (`conformance/`)** — new top-level directory containing:
+  - 9 canonicalization vectors under `conformance/canonicalization/` covering key ordering (including UTF-16 supplementary-plane trap), array preservation, string escaping (all RFC 8785 named escapes + representative unnamed controls + solidus), number serialization (11 cases across the ECMAScript `Number::toString` branch matrix), booleans/null, and attestation-object / claims-array shapes.
+  - 4 core-verifier vectors under `conformance/core/` (2 allow, 2 block) pinning `PIC_VERIFIER_FAILED` and `PIC_TOOL_BINDING_MISMATCH` outcomes.
+  - `conformance/manifest.json` — versioned (`conformance/v0.1`) index of all vectors.
+  - Per-directory `README.md` files documenting vector format and seeding discipline.
+- **Conformance runner** — `conformance/run.py` (`python -m conformance.run`) executes every vector, validates manifest schema strictly (rejects unknown fields and mode/expected mismatches), detects manifest/vector drift, and produces a pass/fail report with CI-friendly exit codes.
+- **CI workflow** — `.github/workflows/conformance.yml` runs the conformance suite on every push and pull request as a `PIC Conformance` check, separate from the main CI job.
+- **Unit tests** — `tests/test_canonical.py` adds 71 tests covering the conformance vector sweep, §10.1 implementation-local rejection cases (non-finite numbers, non-string keys including the pathological `.encode()`-bearing class, circular references, tuples, non-serializable host types, lone surrogates, integers outside the ±(2^53 − 1) safe range), and the `sha256_hex` ↔ `intent_digest_hex` distinction.
+- **Refined attestation object draft** — `docs/attestation-object-draft.md` updated to cite the normative canonicalization spec directly, replace placeholder digests with real byte-verifiable hex values, document the §8.4 signer/verifier contract (both re-canonicalize from the parsed attestation object; raw payload bytes are never signed or verified directly), and link to the conformance vector that pins its worked example.
+
+### Changed
+- `docs/attestation-object-draft.md` Status banner no longer says the canonicalization spec "does not yet exist"; instead it separates what's frozen in v0.8.0 (canonicalization rules, digest inputs) from what remains DRAFT (field set, freshness semantics, audience semantics).
+
+### Vendored
+- **Trail of Bits `rfc8785.py`** (v0.1.4, commit `e7bbf8987c484950edfad6cc2a29f69a18920c8e`, Apache-2.0) — vendored at `sdk-python/pic_standard/_rfc8785.py` to provide RFC 8785 number and string serialization. Upstream raw blob SHA-256 `c25bc3a046528482d53bee3487b837f31dd9c05f33e8f13288c7aab320932cec` is pinned in the file header and in `THIRD_PARTY_NOTICES.md` at the repo root. PIC-specific behavior (tuple rejection, lone-surrogate-in-key validation, circular reference detection, `canonicalize`/`sha256_hex`/`intent_digest_hex` public API, exception normalization) lives in `pic_standard.canonical` which wraps the vendored module.
+
+### Notes
+- **Runtime behavior of existing proposals is unchanged in v0.8.0.** Canonicalization is a new capability exposed through `pic_standard.canonical`; it is not wired into `verify_proposal()` or evidence signing paths. Existing payload-string signatures continue to verify as v0 legacy mode.
+- **Wire-up of canonicalization into evidence signing** (attestation-object-backed signatures using `canonicalize(attestation_object)` as the signed bytes per §8.4) is deferred to a future release.
+- **Evidence-mode and trust-sanitization-mode conformance vectors** are deferred to v0.8.1+ per the Out of Scope section of the v0.8.0 plan. v0.8.0's conformance suite covers canonicalization mode and core verifier mode only.
+- **Cross-implementation conformance** (TypeScript/Go) arrives alongside those reference implementations in Phase 3+; the v0.8.0 conformance suite is deliberately language-neutral (JSON vectors + hex expectations + SHA-256 expectations) so any future language binding consumes the same vectors.
+
+---
+
 ## [0.7.5] - 2026-04-03
 
 ### Added

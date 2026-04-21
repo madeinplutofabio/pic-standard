@@ -1,0 +1,21 @@
+{
+  "id": "core-allow-001-read-only",
+  "description": "Read-impact proposal with untrusted provenance passes the verifier. Read impact does not trigger the trust/evidence causal rejection used for higher-impact proposals, so this proposal is accepted even though provenance.trust is 'untrusted'.",
+  "source": "adapted from examples/read_only_query.json; exercises the causal rule that read-impact proposals are not rejected solely for untrusted provenance",
+  "expected": "allow",
+  "proposal": {
+    "protocol": "PIC/1.0",
+    "intent": "Search internal documentation for company holiday policy.",
+    "impact": "read",
+    "provenance": [
+      { "id": "user_chat_input", "trust": "untrusted" }
+    ],
+    "claims": [
+      { "text": "User is asking for public HR policy", "evidence": ["user_chat_input"] }
+    ],
+    "action": {
+      "tool": "rag_engine.search",
+      "args": { "query": "holiday policy 2026", "collection": "hr_public" }
+    }
+  }
+}

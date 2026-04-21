@@ -7,6 +7,7 @@
 [![CI](https://github.com/madeinplutofabio/pic-standard/actions/workflows/ci.yml/badge.svg)](https://github.com/madeinplutofabio/pic-standard/actions/workflows/ci.yml)
 [![Last commit](https://img.shields.io/github/last-commit/madeinplutofabio/pic-standard)](https://github.com/madeinplutofabio/pic-standard/commits/main)
 [![GitHub stars](https://img.shields.io/github/stars/madeinplutofabio/pic-standard?style=social)](https://github.com/madeinplutofabio/pic-standard)
+[![DOI](https://zenodo.org/badge/1130565808.svg?v=1)](https://doi.org/10.5281/zenodo.18725562)
 [![License](https://img.shields.io/github/license/madeinplutofabio/pic-standard)](https://github.com/madeinplutofabio/pic-standard/blob/main/LICENSE)
 
 PIC is a lightweight, local-first protocol that forces AI agents to **prove** every important action before it happens. Agents must declare intent, impact, provenance, and evidence; PIC verifies everything and **fails closed** if anything is wrong.
@@ -137,6 +138,8 @@ PIC_KEYS_PATH=pic_keys.example.json pic-cli verify examples/financial_sig_ok.jso
 
 Full guide: [docs/evidence.md](docs/evidence.md)
 
+**Canonicalization (v0.8.0+):** PIC Canonical JSON v1 (PIC-CJSON/1.0) defines the byte-exact serialization rules used when PIC hashes or signs JSON values. The normative spec is [`docs/canonicalization.md`](docs/canonicalization.md); a pure-stdlib reference implementation lives at `pic_standard.canonical` (`canonicalize()`, `sha256_hex()`, `intent_digest_hex()`). In v0.8.0 this is an additive capability — existing signature verification paths continue to work as in v0.7.x; wiring canonicalization into attestation-object-backed signatures is scheduled for a later release. Conformance vectors live under [`conformance/canonicalization/`](conformance/canonicalization/) and execute on every PR via the `PIC Conformance` CI job.
+
 ---
 
 ## Keyring (Trusted Signers)
@@ -228,8 +231,9 @@ Verify locally: `sha256sum -c docs/RFC-0001.SHA256`
 - [x] Anchor integrations (LangGraph, MCP, OpenClaw, Cordum)
 - [x] Injectable key resolution + hot path fix (v0.7)
 - [x] Trust hardening + attestation object draft (v0.7.5)
-- [ ] Canonicalization spec (PIC Canonical JSON v1)
-- [ ] Conformance suite with cross-implementation test vectors
+- [x] Canonicalization spec (PIC Canonical JSON v1) + reference implementation (v0.8.0)
+- [x] Initial conformance suite (canonicalization + core modes) with CI runner (v0.8.0)
+- [ ] Cross-implementation conformance (TypeScript/Go verifier parity)
 - [ ] Normative semantics (MUST/SHOULD spec document)
 - [ ] OpenAPI spec + guard hardening (structured audit logs, request correlation)
 - [ ] TypeScript local verifier (second independent implementation)

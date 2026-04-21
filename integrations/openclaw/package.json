@@ -1,6 +1,6 @@
 {
     "name": "pic-guard",
-    "version": "0.7.5",
+    "version": "0.8.0",
     "description": "PIC Standard governance plugin for OpenClaw",
     "type": "module",
     "main": "dist/index.js",
