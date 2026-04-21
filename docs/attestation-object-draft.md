@@ -1,12 +1,19 @@
 # PIC Attestation Object v1 — Draft
 
-> **Status:** DRAFT — non-normative, subject to change.
-> This document is published for community feedback as part of PIC v0.7.5.
-> It will be formalized in Phase 1.1b of the [PIC Roadmap](../ROADMAP.md).
+> **Status:** DRAFT — attestation-object semantics remain subject to Phase 1.1b formalization.
 >
-> This draft uses proposed normative language (MUST, SHOULD, OPTIONAL) to preview
-> intended Phase 1.1b semantics. These requirements are not binding until the
-> attestation object specification is formally adopted.
+> **What's frozen as of PIC v0.8.0:**
+> - The canonicalization rules used to compute `args_digest`, `claims_digest`, and the signed bytes of the attestation object itself are normatively defined in [`docs/canonicalization.md`](canonicalization.md) (PIC Canonical JSON v1 / PIC-CJSON/1.0). Those rules are frozen for PIC-CJSON/1.0 and will not change within v0.8.x.
+> - The byte inputs for each digest are precise enough for conformance vectors. See [Test Vectors](#test-vectors) below.
+>
+> **What is still DRAFT in this document:**
+> - Field set, field names, and presence requirements (MUST / SHOULD / OPTIONAL) are subject to Phase 1.1b review.
+> - Freshness semantics (`issued_at`, `expires_at`) and `audience` semantics are not yet normatively specified.
+> - The Open Questions section below may change field definitions before formal adoption.
+>
+> This draft uses proposed normative language (MUST, SHOULD, OPTIONAL) to preview intended Phase 1.1b semantics. These requirements are not binding until the attestation object specification is formally adopted.
+>
+> Published for community feedback; the attestation object is scheduled for formalization in Phase 1.1b of the [PIC Roadmap](../ROADMAP.md).
 
 ---
 
@@ -14,7 +21,7 @@
 
 PIC v0.7.x signs the `evidence.payload` field — a UTF-8 string whose content and canonicalization are the producer's responsibility. This works, but it has two structural weaknesses:
 
-1. **Payload strings are fragile.** Semantically identical payloads can differ bytewise across producers, languages, and serialization libraries. There is no normative definition of what bytes constitute the "same" payload.
+1. **Payload strings are fragile.** Semantically identical payloads can differ bytewise across producers, languages, and serialization libraries. Before PIC-CJSON/1.0 (v0.8.0) there was no normative definition of what bytes constitute the "same" payload.
 
 2. **Full-proposal signing is brittle.** Signing the entire Action Proposal couples the signature to transport-specific fields, runtime-specific metadata, and field ordering that may vary across integrations and evolve over time.
 
@@ -63,12 +70,12 @@ Intent is the human-readable audit trail. If it is not bound to the signature at
 
 ### Canonicalization inputs for each digest
 
-To avoid ambiguity, each digest is computed over a specific input:
+Each digest is computed over a specific input. The byte-level rules are normative in [`docs/canonicalization.md`](canonicalization.md):
 
-- **`args_digest`** = SHA-256 of the canonicalized JSON representation of `action.args` (the args object exactly as it appears in the proposal, canonicalized via PIC Canonical JSON v1).
-- **`claims_digest`** = SHA-256 of the canonicalized JSON representation of the full `claims` array, preserving proposal array order.
-- **`intent_digest`** = SHA-256 of the raw UTF-8 bytes of the `intent` string (no JSON wrapping, no canonicalization — the string value directly).
-- **`provenance_ids`** = provenance entry IDs listed in the same order as they appear in the proposal's `provenance` array.
+- **`args_digest`** — SHA-256 of `canonicalize(action.args)`, per [`docs/canonicalization.md` §8.1](canonicalization.md#81-args_digest). `canonicalize` is PIC Canonical JSON v1 applied to the `action.args` value exactly as it appears in the Action Proposal.
+- **`claims_digest`** — SHA-256 of `canonicalize(claims)`, per [`docs/canonicalization.md` §8.2](canonicalization.md#82-claims_digest). `claims` is the full `claims` array with array element order preserved as in the proposal.
+- **`intent_digest`** — SHA-256 of the raw UTF-8 bytes of the `intent` string, per [`docs/canonicalization.md` §8.3](canonicalization.md#83-intent_digest). Intent is a scalar string and is **not** JSON-wrapped or canonicalized; the digest is computed over the string's UTF-8 bytes directly. This is the one case where the inputs to a PIC digest are not canonical JSON bytes.
+- **`provenance_ids`** — provenance entry IDs listed in the same order as they appear in the proposal's `provenance` array. No digest; the ids themselves are included by value.
 
 ---
 
@@ -88,12 +95,12 @@ Example evidence entry carrying an attestation object:
   "ref": "inline:attestation",
   "payload": "{\"attestation_version\":\"PIC-ATT/1.0\",\"tool\":\"payments_send\", ...}",
   "alg": "ed25519",
-  "signature": "<base64 Ed25519 signature over canonical bytes of payload>",
+  "signature": "<base64 Ed25519 signature over canonicalize(attestation_object)>",
   "key_id": "org:finance-signer-2026"
 }
 ```
 
-The `payload` field contains the attestation object serialized as PIC Canonical JSON v1. The `signature` is computed over the exact bytes of that string.
+The `payload` field contains the attestation object serialized as PIC Canonical JSON v1. The `signature` is computed over `canonicalize(attestation_object)` per [`docs/canonicalization.md` §8.4](canonicalization.md#84-attestation-object-serialization) — see [Signing Process](#signing-process) below for the complete signer/verifier contract.
 
 ---
 
@@ -119,31 +126,64 @@ Given this Action Proposal:
 }
 ```
 
-The corresponding attestation object would be:
+The digests for the attestation object are computed as follows.
+
+**`args_digest`** (per §8.1):
+
+- Input: `action.args = {"amount": 500, "recipient": "vendor-abc"}`
+- Canonical bytes: `{"amount":500,"recipient":"vendor-abc"}` (39 bytes, keys sorted; `amount` < `recipient` by UTF-16 code unit)
+- SHA-256 hex: `b6f5e7a7ab11623e3d09cb141bb97b196d0891bd1b158d38919ca6642da207d6`
+
+**`claims_digest`** (per §8.2):
+
+- Input: `claims` array with one element.
+- Canonical bytes: `[{"evidence":["approved_invoice"],"text":"Invoice verified in ERP"}]` (68 bytes; inner keys sorted, `evidence` < `text`; array element order preserved)
+- SHA-256 hex: `b74d51c658c6e980599f63ddfe626918c3fdad34c9ec9ef39940b015b0ebe44f`
+
+**`intent_digest`** (per §8.3):
+
+- Input: raw UTF-8 bytes of the `intent` string `"Send $500 to vendor for invoice #1234"` (37 bytes, all ASCII in this example).
+- **No canonicalization applied** — the intent is a scalar string; the digest is over its UTF-8 bytes directly.
+- SHA-256 hex: `0144f52c71b5fbefde848dc9cdb7a9f4c54199a29cdea4b53f5987f491b307d3`
+
+The corresponding attestation object is:
 
 ```json
 {
   "attestation_version": "PIC-ATT/1.0",
   "tool": "payments_send",
-  "args_digest": "<sha256_hex_of_canonicalized_args>",
+  "args_digest": "b6f5e7a7ab11623e3d09cb141bb97b196d0891bd1b158d38919ca6642da207d6",
   "impact": "money",
-  "intent_digest": "<sha256_hex_of_utf8_intent>",
+  "intent_digest": "0144f52c71b5fbefde848dc9cdb7a9f4c54199a29cdea4b53f5987f491b307d3",
   "provenance_ids": ["approved_invoice"],
-  "claims_digest": "<sha256_hex_of_canonicalized_claims>",
+  "claims_digest": "b74d51c658c6e980599f63ddfe626918c3fdad34c9ec9ef39940b015b0ebe44f",
   "issued_at": "2026-04-03T12:00:00Z"
 }
 ```
 
-*(Placeholder digests shown — actual values depend on PIC Canonical JSON v1, which is not yet specified.)*
+Its canonicalization per §8.4 produces 397 bytes beginning `{"args_digest":"b6f5e7a7…`. Those 397 bytes are the `signed_bytes` input to Ed25519 — see [Signing Process](#signing-process).
 
 ---
 
 ## Signing Process
 
-1. **Construct** the attestation object from proposal fields, computing digests as specified above.
-2. **Canonicalize** the attestation object using PIC Canonical JSON v1 (lexicographic keys, UTF-8, no whitespace, precision-critical fields as strings — per RFC 8785 baseline).
-3. **Sign** the canonical bytes with Ed25519.
-4. **Embed** the canonical JSON string as `payload` and the signature as `signature` in a `sig`-type evidence entry in the proposal's `evidence` array.
+The signer and verifier both compute `signed_bytes` from the parsed attestation object, never from the raw payload text. This follows [`docs/canonicalization.md` §8.4](canonicalization.md#84-attestation-object-serialization) exactly.
+
+**Producer:**
+
+1. **Construct** the attestation object from proposal fields, computing digests as specified in [Canonicalization inputs for each digest](#canonicalization-inputs-for-each-digest) above (§8.1 / §8.2 / §8.3).
+2. **Canonicalize**: `signed_bytes = canonicalize(attestation_object)` using [PIC Canonical JSON v1](canonicalization.md).
+3. **Sign**: compute an Ed25519 signature over `signed_bytes`.
+4. **Embed**: store `signed_bytes` (decoded as a UTF-8 string) as the `payload` field of a `sig`-type evidence entry, and the base64-encoded signature (standard Base64 with `=` padding per RFC 4648 §4, not URL-safe) as the `signature` field. Include `alg`, `key_id`, and other metadata per the evidence entry format.
+
+**Verifier:**
+
+1. **Parse**: take the `payload` string, parse it as JSON, and treat the resulting value as the attestation object. The verifier MUST NOT treat the raw payload UTF-8 bytes as authoritative.
+2. **Re-canonicalize**: compute `signed_bytes = canonicalize(parsed_attestation_object)` — exactly the same operation the producer performed.
+3. **Verify**: check the Ed25519 signature against `signed_bytes` using the key identified by `key_id`.
+4. **Enforce semantics**: after signature verification, check `attestation_version` is supported, `tool` matches the intended invocation, `issued_at` / `expires_at` are within policy, and the digests match the corresponding canonicalized fields of the Action Proposal.
+
+This strict re-canonicalization on the verifier side guards against lossy transport (e.g., middleware that re-serializes JSON, re-orders keys, or normalizes whitespace). The signature is always over canonical bytes, never over raw payload text.
 
 ---
 
@@ -163,6 +203,18 @@ Full replay prevention (nonce caches, bounded TTL registries) is not part of the
 
 ---
 
+## Test Vectors
+
+Conformance vectors for attestation-object canonicalization and the §8.4 canonical-byte rule live under [`conformance/canonicalization/`](../conformance/canonicalization/):
+
+- [`004_attestation_object_example.json`](../conformance/canonicalization/004_attestation_object_example.json) — pins the canonical bytes of a full attestation object (8 keys, mixed shared-prefix sort order: `args_digest` / `attestation_version`, and `impact` / `intent_digest` / `issued_at`). Matches the worked example in [`docs/canonicalization.md` §9.4](canonicalization.md#94-attestation-object-example) and contributes the authoritative SHA-256 of the canonical bytes for that example.
+
+Any implementation claiming conformance to this attestation-object draft MUST produce canonical bytes that match every attestation-object vector in that directory byte-exactly. The vectors are executed on every PR by the [`PIC Conformance` CI workflow](../.github/workflows/conformance.yml) via the [PIC Conformance Runner](../conformance/run.py).
+
+Additional vectors covering digest-specific cases (`args_digest` over non-trivial args, `claims_digest` over multi-element claims arrays, `intent_digest` over Unicode intent strings) land alongside expanded attestation-object scope in v0.8.1+.
+
+---
+
 ## Open Questions
 
 The following questions are open for community feedback before this draft is formalized:
@@ -177,7 +229,7 @@ The following questions are open for community feedback before this draft is for
 
 ## Dependencies
 
-- **PIC Canonical JSON v1** (Phase 1.1) — defines the byte-level serialization rules for canonicalization. The attestation object cannot be fully specified or implemented until canonicalization is normative.
+- **PIC Canonical JSON v1** (Phase 1.1, **shipped in v0.8.0**) — the byte-level serialization rules used by this draft are normatively defined in [`docs/canonicalization.md`](canonicalization.md). The attestation object's digest and signing semantics (§8.1–§8.4 of that spec) are concrete and conformance-tested as of v0.8.0.
 - **PIC/1.0 Normative Semantics** (Phase 1.4) — will formalize the Trust Axiom, freshness semantics, and registry definitions that the attestation object references.
 
 ---
@@ -185,7 +237,9 @@ The following questions are open for community feedback before this draft is for
 ## References
 
 - [ROADMAP.md — Phase 1.1b](../ROADMAP.md) — Attestation Object v1 in the PIC roadmap
-- [RFC 8785](https://www.rfc-editor.org/rfc/rfc8785) — JSON Canonicalization Scheme (JCS)
+- [`docs/canonicalization.md`](canonicalization.md) — PIC Canonical JSON v1 (PIC-CJSON/1.0), normative as of v0.8.0
+- [`conformance/canonicalization/`](../conformance/canonicalization/) — canonicalization and attestation-object conformance vectors
+- [RFC 8785](https://www.rfc-editor.org/rfc/rfc8785) — JSON Canonicalization Scheme (JCS), the normative baseline for PIC Canonical JSON v1
 - [RFC 3339](https://www.rfc-editor.org/rfc/rfc3339) — Date and Time on the Internet: Timestamps
 - [RFC 4648](https://www.rfc-editor.org/rfc/rfc4648) — Base Encodings (Base64)
 - [in-toto Statement](https://github.com/in-toto/attestation/blob/main/spec/v1/statement.md) — supply-chain attestation pattern (digest-based subject binding)

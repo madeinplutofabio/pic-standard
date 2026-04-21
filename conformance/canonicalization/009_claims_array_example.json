@@ -1,0 +1,17 @@
+{
+  "id": "canon-009-claims-array-example",
+  "description": "Claims-array-shaped input (§8.2 claims_digest canonical input shape): top-level JSON array of two objects with two keys each. Input array element order is deliberately the opposite of any reasonable lexical ordering — element 0 carries 'later'/'zeta', element 1 carries 'earlier'/'alpha' — so a conformant implementation MUST preserve the input array order per §7.5 and per §8.2 ('order preserved as in the proposal'). Each object's keys are provided in non-canonical input order (scope before claim) and MUST be sorted per §7.2. Catches implementations that incorrectly sort array elements (by first-key value, by per-element canonical bytes, or by any other rule) and implementations that skip per-object key sort.",
+  "source": "hand-verified against docs/canonicalization.md §7.2, §7.5, §7.6, §8.2 and RFC 8785 §3.2.3 by Fabio M. S., 2026-04-20",
+  "input": [
+    {
+      "scope": "zeta",
+      "claim": "later"
+    },
+    {
+      "scope": "alpha",
+      "claim": "earlier"
+    }
+  ],
+  "expected_canonical_bytes_hex": "5b7b22636c61696d223a226c61746572222c2273636f7065223a227a657461227d2c7b22636c61696d223a226561726c696572222c2273636f7065223a22616c706861227d5d",
+  "expected_sha256_hex": "c767f20012151467acda73819335372e2a040b84a1336d4390715be60670012e"
+}

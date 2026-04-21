@@ -1,0 +1,85 @@
+{
+  "version": "conformance/v0.1",
+  "vectors": [
+    {
+      "id": "canon-001-basic-object",
+      "file": "canonicalization/001_basic_object.json",
+      "mode": "canonicalization",
+      "expected": "canonical_match"
+    },
+    {
+      "id": "canon-002-unicode-key-ordering",
+      "file": "canonicalization/002_unicode_key_ordering.json",
+      "mode": "canonicalization",
+      "expected": "canonical_match"
+    },
+    {
+      "id": "canon-003-array-order-preserved",
+      "file": "canonicalization/003_array_order_preserved.json",
+      "mode": "canonicalization",
+      "expected": "canonical_match"
+    },
+    {
+      "id": "canon-004-attestation-object-example",
+      "file": "canonicalization/004_attestation_object_example.json",
+      "mode": "canonicalization",
+      "expected": "canonical_match"
+    },
+    {
+      "id": "canon-005-supplementary-plane-key-ordering",
+      "file": "canonicalization/005_supplementary_plane_key_ordering.json",
+      "mode": "canonicalization",
+      "expected": "canonical_match"
+    },
+    {
+      "id": "canon-006-string-escaping",
+      "file": "canonicalization/006_string_escaping.json",
+      "mode": "canonicalization",
+      "expected": "canonical_match"
+    },
+    {
+      "id": "canon-007-number-serialization",
+      "file": "canonicalization/007_number_serialization.json",
+      "mode": "canonicalization",
+      "expected": "canonical_match"
+    },
+    {
+      "id": "canon-008-booleans-and-null",
+      "file": "canonicalization/008_booleans_and_null.json",
+      "mode": "canonicalization",
+      "expected": "canonical_match"
+    },
+    {
+      "id": "canon-009-claims-array-example",
+      "file": "canonicalization/009_claims_array_example.json",
+      "mode": "canonicalization",
+      "expected": "canonical_match"
+    },
+    {
+      "id": "core-allow-001-read-only",
+      "file": "core/allow/001_read_only.json",
+      "mode": "core",
+      "expected": "allow"
+    },
+    {
+      "id": "core-allow-002-trusted-money",
+      "file": "core/allow/002_trusted_money.json",
+      "mode": "core",
+      "expected": "allow"
+    },
+    {
+      "id": "core-block-001-untrusted-money",
+      "file": "core/block/001_untrusted_money.json",
+      "mode": "core",
+      "expected": "block",
+      "expected_error_code": "PIC_VERIFIER_FAILED"
+    },
+    {
+      "id": "core-block-002-tool-binding-mismatch",
+      "file": "core/block/002_tool_binding_mismatch.json",
+      "mode": "core",
+      "expected": "block",
+      "expected_error_code": "PIC_TOOL_BINDING_MISMATCH"
+    }
+  ]
+}

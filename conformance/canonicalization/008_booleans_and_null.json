@@ -1,0 +1,12 @@
+{
+  "id": "canon-008-booleans-and-null",
+  "description": "Serialization of the three JSON literals — true, false, null — per §7.12, one per key. Keys are provided in non-canonical input order (t, f, n) so the vector also exercises §7.2 key sorting. Catches implementations that emit title-case (True/False/Null) or upper-case (TRUE/FALSE/NULL) literals, or that drop null-valued keys during serialization.",
+  "source": "hand-verified against docs/canonicalization.md §7.2, §7.6, §7.12 and RFC 8785 §3.2.3 by Fabio M. S., 2026-04-20",
+  "input": {
+    "t": true,
+    "f": false,
+    "n": null
+  },
+  "expected_canonical_bytes_hex": "7b2266223a66616c73652c226e223a6e756c6c2c2274223a747275657d",
+  "expected_sha256_hex": "22e00dc2f7b01420f940fbdbfbdf34fa0667cc6500186495023ba37722cbd05e"
+}

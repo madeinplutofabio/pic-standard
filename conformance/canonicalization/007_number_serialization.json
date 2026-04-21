@@ -1,0 +1,10 @@
+{
+  "id": "canon-007-number-serialization",
+  "description": "Number serialization: 11 representative values across the ECMAScript Number::toString branch matrix referenced by RFC 8785 §3.2.2.3. Covers zero, small signed integers, max safe integer (2^53 − 1), integer-valued float (1.0 → '1'), simple and signed fractions, and the four exponent-branch boundary cases (1e-7 → '1e-7' scientific; 1e-6 → '0.000001' decimal; 1e20 → integer form with 20 zeros; 1e21 → '1e+21' scientific). Catches Python-style trailing '.0' on integer-valued floats, wrong-side-of-boundary scientific/decimal emission, and uppercase 'E' in exponents. IEEE 754 shortest-round-trip edge cases (e.g., 0.1 + 0.2) are deferred to a future vector explicitly seeded from RFC 8785 appendix or a second implementation.",
+  "source": "hand-verified against docs/canonicalization.md §7.2, §7.5, §7.6, §7.9, RFC 8785 §3.2.2.3, RFC 8785 §3.2.3, and the ECMAScript Number::toString algorithm by Fabio M. S., 2026-04-20",
+  "input": {
+    "numbers": [0, 1, -42, 9007199254740991, 1.0, 0.5, -3.14, 1e-7, 1e-6, 1e20, 1e21]
+  },
+  "expected_canonical_bytes_hex": "7b226e756d62657273223a5b302c312c2d34322c393030373139393235343734303939312c312c302e352c2d332e31342c31652d372c302e3030303030312c3130303030303030303030303030303030303030302c31652b32315d7d",
+  "expected_sha256_hex": "6eb4b991c060f0f35aadb283baa41c68830aede5cea2d45129652321cd18c0d3"
+}

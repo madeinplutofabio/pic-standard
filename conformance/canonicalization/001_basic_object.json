@@ -1,0 +1,11 @@
+{
+  "id": "canon-001-basic-object",
+  "description": "Basic object key ordering example; mirrors docs/canonicalization.md §9.1.",
+  "source": "hand-verified against docs/canonicalization.md §7.2, §7.6, §7.9 and RFC 8785 §3.2.3 by Fabio M. S., 2026-04-20",
+  "input": {
+    "b": 2,
+    "a": 1
+  },
+  "expected_canonical_bytes_hex": "7b2261223a312c2262223a327d",
+  "expected_sha256_hex": "43258cff783fe7036d8a43033f830adfc60ec037382473548ac742b888292777"
+}

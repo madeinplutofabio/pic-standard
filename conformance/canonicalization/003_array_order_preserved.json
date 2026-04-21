@@ -1,0 +1,14 @@
+{
+  "id": "canon-003-array-order-preserved",
+  "description": "Array element order is preserved while object keys are sorted, at both outer and inner levels; mirrors docs/canonicalization.md §9.3.",
+  "source": "hand-verified against docs/canonicalization.md §7.2, §7.5, §7.6, §7.9 and RFC 8785 §3.2.3 by Fabio M. S., 2026-04-20",
+  "input": {
+    "items": [3, 1, 2],
+    "meta": {
+      "b": 1,
+      "a": 2
+    }
+  },
+  "expected_canonical_bytes_hex": "7b226974656d73223a5b332c312c325d2c226d657461223a7b2261223a322c2262223a317d7d",
+  "expected_sha256_hex": "37ca1fa3796b78672abba2517ea0d6a88e2d98b5a32d77e756554453d73f4755"
+}

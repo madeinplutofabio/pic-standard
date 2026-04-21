@@ -1,0 +1,11 @@
+{
+  "id": "canon-005-supplementary-plane-key-ordering",
+  "description": "Object key ordering where UTF-16 code unit sort (the PIC-CJSON/1.0 rule) and Unicode code point sort (a naive host-language fallback) diverge: U+10400 (supplementary plane; UTF-16 surrogate pair D801+DC00) MUST sort before U+F900 (BMP; UTF-16 code unit F900). Catches implementations that use host-language default string ordering (e.g., Python 3 default str comparison, which sorts by code point).",
+  "source": "hand-verified against docs/canonicalization.md §7.2, §7.6, §7.7, §7.8, §7.9 and RFC 8785 §3.2.3 by Fabio M. S., 2026-04-20",
+  "input": {
+    "\uF900": 2,
+    "\uD801\uDC00": 1
+  },
+  "expected_canonical_bytes_hex": "7b22f0909080223a312c22efa480223a327d",
+  "expected_sha256_hex": "039f7725124ebb3f902b565b0c50df7cf3ad98550f90eb1894754f68d0fd5a6d"
+}
