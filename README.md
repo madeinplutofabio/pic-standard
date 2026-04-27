@@ -222,6 +222,8 @@ Formal specification covering scope, threat model, security properties, conforma
 
 Verify locally: `sha256sum -c docs/RFC-0001.SHA256`
 
+[**Canonical Vocabulary**](docs/vocabulary.md) — authoritative glossary of PIC terminology cited by external crosswalks and registries.
+
 ---
 
 ## Roadmap

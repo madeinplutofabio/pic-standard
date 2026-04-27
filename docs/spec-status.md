@@ -19,3 +19,9 @@
 The PIC/1.0 proposal structure and wire-level schema have remained stable since the RFC anchor. Post-RFC changes in v0.6.x–v0.8.x primarily affected shared pipeline behavior, trust resolution, integration surface, runtime efficiency, and canonicalization/conformance tooling rather than introducing a wire-format break.
 
 **Current Python reference implementation:** v0.8.0
+
+---
+
+## Canonical PIC Vocabulary
+
+Authoritative term definitions are maintained in [`docs/vocabulary.md`](vocabulary.md). External crosswalks and registries (e.g. `aeoess/agent-governance-vocabulary`) should reference that file rather than recoining PIC terminology. When upstream PIC docs evolve a term, `vocabulary.md` is updated in the same PR; treat divergence between the two as a bug.
