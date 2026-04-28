@@ -12,6 +12,8 @@
 
 PIC is a lightweight, local-first protocol that forces AI agents to **prove** every important action before it happens. Agents must declare intent, impact, provenance, and evidence; PIC verifies everything and **fails closed** if anything is wrong.
 
+PIC is not agent identity or delegation infrastructure; PIC is the action-bound verification contract that decides whether a high-impact tool call is justified to execute now.
+
 *No more hallucinations turning into wire transfers. No more prompt injections triggering data exports.*
 
 **Example — when PIC blocks:** A Slack message asks an LLM agent to send a $500 payment. PIC requires the agent to prove: *where did this instruction come from? Is the source trusted? Is there evidence the invoice is real?* The Slack message carries no trusted provenance, the claim has no backing evidence — PIC returns `block`. The payment tool never executes.
