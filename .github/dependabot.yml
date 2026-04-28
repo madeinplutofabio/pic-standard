@@ -1,34 +1,54 @@
 version: 2
 updates:
 
-  # ── Python (pip) — root pyproject.toml ──────────────────────────
+  # ── Python (pip) — pyproject.toml only ──────────────────────────
+  # Deliberately scoped to the project root via `exclude-paths`. Without
+  # the exclude rule, Dependabot's pip scanner reaches into /sdk-python/
+  # and produces byte-identical duplicates of PRs already covered by the
+  # second pip block below (this pattern caused the duplicate PRs we
+  # closed in April 2026: #57, #60).
+  #
+  # `versioning-strategy: "increase"` is set explicitly because the
+  # default `auto` does `widen` for library-style pyproject.toml — that
+  # would broaden the version range / add upper bounds rather than raise
+  # the floor. The whole point of this block is to surface available
+  # floor bumps for the published-package metadata, so `increase` is the
+  # behavior we actually want here.
   - package-ecosystem: "pip"
     directory: "/"
+    exclude-paths:
+      - "sdk-python/**"
     schedule:
       interval: "weekly"
       day: "monday"
-    open-pull-requests-limit: 5
-    groups:
-      python-minor-patch:
-        update-types:
-          - "minor"
-          - "patch"
+    open-pull-requests-limit: 1
+    versioning-strategy: "increase"
+    # Other strategies if `increase` proves wrong for this project:
+    #   versioning-strategy: "auto"                  # default; for libraries acts like `widen`
+    #   versioning-strategy: "increase-if-necessary" # only update when current range excludes the new release
+    #   versioning-strategy: "widen"                 # broaden the range to include both old and new (no floor change)
     ignore:
       - dependency-name: "*"
         update-types: ["version-update:semver-major"]
     commit-message:
-      prefix: "deps(python):"
+      prefix: "deps(pyproject):"
     labels:
       - "dependencies"
       - "python"
 
-  # ── Python (pip) — sdk-python/requirements*.txt ─────────────────
+  # ── Python (pip) — sdk-python/ requirements*.txt ─────────────────
+  # The dev/CI lockfile-style pins. Distinct from the root pyproject.toml
+  # block above by design: this block tracks pinned/floored requirements
+  # files that contributors and CI install from; the root block tracks
+  # the published-package metadata. The default `auto` versioning-strategy
+  # is correct here — for app-style requirements*.txt files `auto` acts
+  # like `increase`, which is the behavior we want.
   - package-ecosystem: "pip"
     directory: "/sdk-python"
     schedule:
       interval: "weekly"
       day: "monday"
-    open-pull-requests-limit: 5
+    open-pull-requests-limit: 3
     groups:
       python-sdk-minor-patch:
         update-types:
