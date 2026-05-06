@@ -13,12 +13,16 @@ url: "https://github.com/madeinplutofabio/pic-standard"
 repository-artifact: "https://pypi.org/project/pic-standard/"
 license: "Apache-2.0"
 
-version: "0.5.5"
-date-released: "2026-02-18"
+version: "0.8.0"
+date-released: "2026-04-20"
 
 identifiers:
   - type: doi
-    value: "10.5281/zenodo.18725563"
+    value: "10.5281/zenodo.18725562"
+    description: "Concept DOI (umbrella; resolves to the latest archived version)"
+  - type: doi
+    value: "10.5281/zenodo.19683522"
+    description: "Version DOI for v0.8.0 (archived 2026-04-21)"
 
 keywords:
   - ai-safety
