@@ -223,5 +223,3 @@ examples/_mcp_server_stderr.log
 # PIC keyring (local trusted keys)
 pic_keys.json
 
-# Internal roadmap (frozen plan, not shipped)
-ROADMAP.md

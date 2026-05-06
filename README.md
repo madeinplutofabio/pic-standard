@@ -31,6 +31,7 @@ PIC is not agent identity or delegation infrastructure; PIC is the action-bound 
 - [Integrations](#integrations)
 - [RFC & Prior Art](#rfc--prior-art)
 - [Roadmap](#roadmap)
+- [Project info](#project-info)
 - [Contributing](#contributing)
 
 ---
@@ -241,6 +242,15 @@ Verify locally: `sha256sum -c docs/RFC-0001.SHA256`
 - [ ] Normative semantics (MUST/SHOULD spec document)
 - [ ] OpenAPI spec + guard hardening (structured audit logs, request correlation)
 - [ ] TypeScript local verifier (second independent implementation)
+
+---
+
+## Project info
+
+- **Security policy** — see [`SECURITY.md`](SECURITY.md). Report vulnerabilities privately via [GitHub Security Advisories](https://github.com/madeinplutofabio/pic-standard/security/advisories/new); do not file public issues for security reports.
+- **Code of conduct** — see [`CODE_OF_CONDUCT.md`](CODE_OF_CONDUCT.md). PIC follows the [Contributor Covenant 2.1](https://www.contributor-covenant.org/version/2/1/code_of_conduct/). Reports go to `team@madeinpluto.com`.
+- **Citation** — see [`CITATION.cff`](CITATION.cff) for full citation metadata. The Zenodo concept DOI [10.5281/zenodo.18725562](https://doi.org/10.5281/zenodo.18725562) (badged at the top of this page) resolves to the latest archived release on Zenodo; per-version DOIs are listed on the Zenodo record.
+- **License** — Apache-2.0; see [`LICENSE`](LICENSE) (also badged at the top of this page).
 
 ---
 

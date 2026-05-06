@@ -187,7 +187,19 @@ The warning will still fire, because evidence verification will not actually run
 
 **Q: What happens to proposals with `trust: "semi_trusted"`?**
 
-In strict mode, `semi_trusted` is also sanitized to `"untrusted"`. Only evidence verification can upgrade trust. The warning, however, only fires for `trust="trusted"` — this targets the most dangerous case (self-asserted full trust).
+**Today (v0.8.0):** in strict mode, `semi_trusted` is sanitized to `"untrusted"`. Only evidence verification can upgrade trust. The `PICTrustFutureWarning` (described above) only fires for `trust="trusted"` — that warning targets the most dangerous case (self-asserted full trust); `semi_trusted` is handled silently in strict mode.
+
+**v0.8.1 (planned):** `semi_trusted` enters formal deprecation. A new `PICSemiTrustedDeprecationWarning` will fire at all public proposal-ingestion paths (the shared schema-validation boundary) whenever `trust: "semi_trusted"` is observed, regardless of strict-trust mode. The warning cites this guide and the [PIC Roadmap](../ROADMAP.md) for context.
+
+**v0.9.0 (planned):** `"semi_trusted"` is **removed** from the trust enum entirely. Proposals carrying it will fail schema validation. The only conformant trust values become `"trusted"` and `"untrusted"`, with `"trusted"` requiring evidence verification under strict mode (the v1.0 default).
+
+**Migration path for producers using `trust: "semi_trusted"` today:**
+1. Treat the value as deprecated immediately. Plan to remove it before v0.9.0.
+2. Replace `trust: "semi_trusted"` with `trust: "untrusted"` now. This is the forward-compatible choice for all producers.
+3. If the proposal carries verifiable evidence (hash, signature, attestation), keep that evidence attached and let the verifier derive effective trust from successful verification.
+4. Do not rely on producer-declared trust labels for authorization. Under the trust axiom (v0.7.5), inbound `trust` is non-authoritative; only verifier-controlled context or successful evidence verification can establish trusted status.
+
+See the [PIC Roadmap](../ROADMAP.md) — Phase 0 (this entry) and Phase 1 (`semi_trusted` deprecation in v0.8.1) — for the full trajectory and rationale.
 
 ---
 
