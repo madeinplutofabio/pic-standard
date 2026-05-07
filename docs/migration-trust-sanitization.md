@@ -26,6 +26,7 @@ This migration changes verifier behavior and integration defaults over time; it 
 |---------|----------|
 | **v0.7.x** | `provenance[].trust` accepted at face value. No warnings. |
 | **v0.8.0** | `PICTrustFutureWarning` emitted when self-asserted `trust="trusted"` is present and effective evidence verification will not run. New `strict_trust` pipeline option available (default `False`). Wire format unchanged. |
+| **v0.8.1** | `PICSemiTrustedDeprecationWarning` emitted when `trust="semi_trusted"` is observed. The value is normalized to `"untrusted"` at the canonical model-validation boundary (the `Provenance.trust` pydantic field validator), in all modes — including strict-trust mode. Schema enum unchanged in v0.8.1. Example files migrated off `semi_trusted` (the project's own surface is clean). |
 | **v1.0** | `strict_trust=True` is the default and the only conformant mode. Non-sanitizing mode is explicitly **legacy and non-conformant** — implementations that disable trust sanitization MUST NOT claim PIC/1.0 conformance. |
 
 ---
@@ -187,11 +188,11 @@ The warning will still fire, because evidence verification will not actually run
 
 **Q: What happens to proposals with `trust: "semi_trusted"`?**
 
-**Today (v0.8.0):** in strict mode, `semi_trusted` is sanitized to `"untrusted"`. Only evidence verification can upgrade trust. The `PICTrustFutureWarning` (described above) only fires for `trust="trusted"` — that warning targets the most dangerous case (self-asserted full trust); `semi_trusted` is handled silently in strict mode.
+**v0.8.1 (this release):** `semi_trusted` is formally deprecated. A `PICSemiTrustedDeprecationWarning` (defined in `pic_standard.verifier`, also re-exported at `pic_standard` package root) fires whenever a `Provenance` is constructed with `trust="semi_trusted"` — whether via `verify_proposal()` or via direct model construction. The value is normalized to `"untrusted"` at the canonical model-validation boundary (the `Provenance.trust` pydantic field validator), in all modes (not only `strict_trust=True`). The repository's own example files have been migrated off `semi_trusted` (`examples/financial_irreversible.json` and `examples/robotic_action.json` now use `"untrusted"` for the affected entries; the load-bearing `"trusted"` entries in those files are unchanged). Producers MUST migrate before v0.9.0.
 
-**v0.8.1 (planned):** `semi_trusted` enters formal deprecation. A new `PICSemiTrustedDeprecationWarning` will fire at all public proposal-ingestion paths (the shared schema-validation boundary) whenever `trust: "semi_trusted"` is observed, regardless of strict-trust mode. The warning cites this guide and the [PIC Roadmap](../ROADMAP.md) for context.
+**Pre-v0.8.1 baseline (v0.8.0):** prior to v0.8.1, `semi_trusted` was silently sanitized to `"untrusted"` only in `strict_trust=True` mode and accepted as-is otherwise. The `PICTrustFutureWarning` (described above) only fires for `trust="trusted"`; it has never targeted `semi_trusted`. This pre-v0.8.1 behavior is preserved as historical context only — v0.8.1+ should be considered the canonical behavior.
 
-**v0.9.0 (planned):** `"semi_trusted"` is **removed** from the trust enum entirely. Proposals carrying it will fail schema validation. The only conformant trust values become `"trusted"` and `"untrusted"`, with `"trusted"` requiring evidence verification under strict mode (the v1.0 default).
+**v0.9.0 (planned):** `"semi_trusted"` is **removed** from the trust enum entirely. Proposals carrying it will fail JSON Schema validation. The only conformant trust values become `"trusted"` and `"untrusted"`, with `"trusted"` requiring evidence verification under strict mode (the v1.0 default).
 
 **Migration path for producers using `trust: "semi_trusted"` today:**
 1. Treat the value as deprecated immediately. Plan to remove it before v0.9.0.
@@ -199,7 +200,7 @@ The warning will still fire, because evidence verification will not actually run
 3. If the proposal carries verifiable evidence (hash, signature, attestation), keep that evidence attached and let the verifier derive effective trust from successful verification.
 4. Do not rely on producer-declared trust labels for authorization. Under the trust axiom (v0.7.5), inbound `trust` is non-authoritative; only verifier-controlled context or successful evidence verification can establish trusted status.
 
-See the [PIC Roadmap](../ROADMAP.md) — Phase 0 (this entry) and Phase 1 (`semi_trusted` deprecation in v0.8.1) — for the full trajectory and rationale.
+See the [PIC Roadmap](../ROADMAP.md) for the full trajectory and rationale.
 
 ---
 

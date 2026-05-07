@@ -4,7 +4,7 @@
   "impact": "irreversible",
   "provenance": [
     { "id": "lidar_safety_trigger", "trust": "trusted" },
-    { "id": "operator_voice_command", "trust": "semi_trusted" }
+    { "id": "operator_voice_command", "trust": "untrusted" }
   ],
   "claims": [
     { "text": "LIDAR detected obstacle within 0.5m hazard zone", "evidence": ["lidar_safety_trigger"] },

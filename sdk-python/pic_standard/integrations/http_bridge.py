@@ -17,7 +17,7 @@ GET  /health
     200:  {"status": "ok", "request_id": "<UUID>"}
 
 GET  /v1/version
-    200:  {"pic_version": "1.0", "package_version": "0.8.0", "commit": "<hash>", "policy_version": "1.0", "request_id": "<UUID>"}
+    200:  {"pic_version": "1.0", "package_version": "0.8.1", "commit": "<hash>", "policy_version": "1.0", "request_id": "<UUID>"}
 
 Design notes
 ------------

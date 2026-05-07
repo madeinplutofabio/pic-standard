@@ -5,6 +5,36 @@ All notable changes to this project will be documented in this file.
 This project follows Semantic Versioning:
 https://semver.org/
 
+## [0.8.1] - 2026-05-07
+
+### Added
+- **`PICSemiTrustedDeprecationWarning`** (`pic_standard.verifier`) — fires at the model-validation boundary when a `Provenance` is constructed with `trust='semi_trusted'`, whether via `verify_proposal()` or via direct model construction. Replaces silent acceptance with explicit deprecation signaling. Subclasses `FutureWarning` (visible by default in Python's warning filters) to ensure producers actually see the migration signal.
+- **Pydantic field validator on `Provenance.trust`** (`mode='before'`) — the canonical normalization boundary for the deprecated value. Normalizes `"semi_trusted"` → `"untrusted"` at construction time and emits the deprecation warning. Applies in all modes (not only `strict_trust=True`). Any construction path that bypasses this validator is non-conformant with the v0.8.1 behavior contract.
+- **Bridge helper in `pic_standard.pipeline`** (`_normalize_provenance_entries_via_model_validator`) — triggers the canonical field validator immediately after JSON Schema validation in `verify_proposal()`, so the deprecation warning fires regardless of `strict_trust` mode and `semi_trusted` is normalized to `"untrusted"` before strict-trust flattening or evidence verification consume the dict. Full `ActionProposal` instantiation still happens later in the pipeline, after evidence verification, so `verify_causal_contract` continues to observe the final post-evidence trust state.
+- **Package-root re-export** for both deprecation warning classes: `from pic_standard import PICSemiTrustedDeprecationWarning, PICTrustFutureWarning`. The existing deep-import paths (`pic_standard.verifier`, `pic_standard.pipeline`) continue to work; re-export is additive and pinned by a small public-API assertion test.
+- **Test coverage** for the new warning in `tests/test_trust_deprecation_warning.py`, including:
+  - Direct-construction tests (string and enum forms) on `Provenance`.
+  - Cascade tests via `ActionProposal` proving per-entry warning cardinality.
+  - `verify_proposal()` flow tests in both non-strict and `strict_trust=True` modes (the latter is the load-bearing Path A property).
+  - Mixed-provenance and "no `semi_trusted` present" regression guards.
+  - A **verdict-regression matrix** (parametrized, 24 rows across 6 example proposals × the `strict_trust × verify_evidence` matrix) that pins the v0.8.0 baseline `verify_proposal()` outcomes (`ok` and `error.code` only — stable fields, asserted against `PICErrorCode` enum members, no free-text). Stays in the suite as a permanent CI guard against any future refactor that touches the dict-vs-model boundary. Includes an explicit canary case (`financial_hash_ok.json` with `verify_evidence=True`) that would flip from `ok=True` to `ok=False` if full instantiation ever moved ahead of evidence verification.
+
+### Deprecated
+- **`provenance[].trust == "semi_trusted"`** is **deprecated** in v0.8.1. Producers MUST migrate to `"untrusted"`. The value is normalized to `"untrusted"` automatically, in all modes, by the model-validation boundary, and a `PICSemiTrustedDeprecationWarning` is emitted on every `Provenance` construction with the deprecated value. **Removal is scheduled for v0.9.0**, where the value will fail JSON Schema validation and be removed from the `TrustLevel` enum entirely. See `docs/migration-trust-sanitization.md` for the full trajectory and producer migration path.
+
+### Changed
+- **`examples/financial_irreversible.json`** and **`examples/robotic_action.json`** — migrated off `trust: "semi_trusted"` to `trust: "untrusted"`. Trust-flip only; no hash evidence added. Adding hash evidence to a Slack message or voice transcript would have been semantically misleading (hash binds bytes, not authority) and risked teaching the wrong security intuition given that PIC's evidence flow upgrades trust on successful hash verification. The existing trusted provenance entries (`cfo_signed_invoice_hash`, `lidar_safety_trigger`) remain the load-bearing sources; the migrated entries stay as honest `untrusted` corroboration.
+- **`verify_proposal()`** now triggers the `Provenance.trust` field validator immediately after JSON Schema validation, so deprecated `semi_trusted` inputs warn and normalize before strict-trust flattening or evidence verification. Full `ActionProposal` instantiation still occurs later in the pipeline, after evidence verification, so contract enforcement (`verify_causal_contract`) continues to observe the final trust state and existing verdict behavior is preserved end-to-end.
+- **`docs/migration-trust-sanitization.md`** — `semi_trusted` Q&A flipped from "(planned)" to "(this release)" tense; new `v0.8.1` row added to the Timeline table; example file migration noted explicitly.
+
+### Notes
+- **The proposal JSON Schema (`proposal_schema.json`) still accepts `"semi_trusted"` in v0.8.1.** Runtime normalizes the value at the model-validation boundary; the schema enum is unchanged in this release. Schema-level removal happens in v0.9.0 per the migration trajectory in `docs/migration-trust-sanitization.md`.
+- **No canonicalization changes.** PIC-CJSON/1.0 remains frozen at v0.8.0.
+- **No conformance manifest changes.** Existing vectors continue to pass.
+- **No wire format change.** Existing v0.8.0 proposals continue to parse, verify, and produce the same allow/block verdicts under v0.8.1 (the verdict-regression matrix codifies this guarantee).
+
+---
+
 ## [0.8.0] - 2026-04-20
 
 ### Added
