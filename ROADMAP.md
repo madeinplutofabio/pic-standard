@@ -1,7 +1,7 @@
 # PIC Standard — Enterprise-Ready Roadmap
 
 > Living plan for standardization, interop, and enterprise adoption.
-> Updated for the post-v0.8.0 repo state (2026-04-28).
+> Updated for the post-v0.8.1 repo state (2026-05-07).
 
 ---
 
@@ -59,8 +59,8 @@ Specifications in this project are treated as evolving drafts until cross-implem
 |------|--------|
 | `docs/canonicalization.md` (PIC-CJSON/1.0) | **Frozen at v0.8.0** — exceptional case; clean external grounding in RFC 8785 made early freeze safe |
 | `docs/attestation-object-draft.md` | DRAFT throughout v0.8.x; refined under cross-impl pressure in v0.9.x; promoted to normative at v1.0 |
-| `docs/spec-core.md` | Initial DRAFT in v0.8.1; evolves through v0.9.x; promoted to normative at v1.0 |
-| `docs/spec-evidence.md` | Initial DRAFT in v0.8.1; evolves through v0.9.x; promoted to normative at v1.0 |
+| `docs/spec-core.md` | Initial DRAFT in v0.8.2 (deferred from v0.8.1); evolves through v0.9.x; promoted to normative at v1.0 |
+| `docs/spec-evidence.md` | Initial DRAFT in v0.8.2 (deferred from v0.8.1); evolves through v0.9.x; promoted to normative at v1.0 |
 
 **Rationale:** A spec is genuinely frozen only when independent implementations have exposed its ambiguities. Freezing before cross-impl conformance produces specs that look authoritative but in fact have unresolved corner cases. PIC-CJSON/1.0 is the exception because RFC 8785 provided the missing external grounding before any second implementation existed.
 
@@ -72,9 +72,9 @@ Specifications in this project are treated as evolving drafts until cross-implem
 |---------|-------|-----------|--------|
 | v0.7.5 | Trust hardening + attestation draft | `strict_trust` pipeline option, `PICTrustFutureWarning`, attestation object draft, migration guide | ✅ Done |
 | **v0.8.0** | **Canonicalization foundation + conformance skeleton** | **PIC Canonical JSON v1 spec (frozen), reference implementation (`pic_standard.canonical`), 9 canonicalization vectors, refined attestation-object draft with byte-level digests, `conformance/` suite first pass, `conformance/manifest.json`, `python -m conformance.run`, `PIC Conformance` CI job** | ✅ Done |
-| **Phase 0 cleanup** | **Repo hygiene** | **`ROADMAP.md` committed, broken roadmap-link refs fixed, `semi_trusted` deprecation trajectory documented, `SECURITY.md`, `CODE_OF_CONDUCT.md`** | 🔄 Next |
-| **v0.8.1** | **Semantics layering + conformance expansion + `semi_trusted` deprecation** | **Evidence-mode vectors, trust-sanitization vectors, runner hardening (JSON output, run-by-id/mode, machine-readable failure reporting), initial DRAFT `docs/spec-core.md`, initial DRAFT `docs/spec-evidence.md`, `semi_trusted` deprecated with `PICSemiTrustedDeprecationWarning` (schema still accepts; all ingestion paths normalize to `untrusted` at parse time; examples updated)** | Planned |
-| **v0.8.2** | **Canonical runtime signing (opt-in)** | **Canonical attestation-object bytes wired into runtime signing/verification flow as an opt-in mode (default remains legacy payload-string for one release). Attestation Object v1 remains DRAFT during this stabilization phase. Legacy mode explicitly demoted to compatibility mode in docs.** | Planned |
+| **Phase 0 cleanup** | **Repo hygiene** | **`ROADMAP.md` committed, broken roadmap-link refs fixed, `semi_trusted` deprecation trajectory documented, `SECURITY.md`, `CODE_OF_CONDUCT.md`** | ✅ Done (PR #67) |
+| **v0.8.1** | **`semi_trusted` deprecation** | **`PICSemiTrustedDeprecationWarning` (defined in `pic_standard.verifier`, re-exported at package root, subclasses `FutureWarning`); pydantic field validator on `Provenance.trust` as the canonical normalization boundary; bridge helper in `verify_proposal()` triggers the validator immediately after JSON Schema validation, so the deprecation warning fires regardless of `strict_trust` mode and `semi_trusted` is normalized to `"untrusted"` before strict-trust flattening or evidence verification consume the dict; full `ActionProposal` instantiation stays last so `verify_causal_contract` keeps observing post-evidence trust state; examples migrated off `semi_trusted` (trust-flip only — no hash evidence added, since hash binds bytes not authority); migration doc `docs/migration-trust-sanitization.md` updated; verdict-regression matrix codified in `tests/test_trust_deprecation_warning.py` as a permanent CI guard. **Other v0.8.1-targeted items from the post-v0.8.0 plan (conformance expansion, runner hardening, initial DRAFTs of `spec-core.md` / `spec-evidence.md`) are deferred to v0.8.2 to keep this release focused on the deprecation surface.** | ✅ Done |
+| **v0.8.2** | **Conformance expansion + runner hardening + initial spec drafts + canonical runtime signing (opt-in)** | **(Deferred from v0.8.1) Evidence-mode vectors, trust-sanitization vectors, runner hardening (JSON output, run-by-id/mode, machine-readable failure reporting), initial DRAFT `docs/spec-core.md`, initial DRAFT `docs/spec-evidence.md`. (v0.8.2 native) Canonical attestation-object bytes wired into runtime signing/verification flow as an opt-in mode (default remains legacy payload-string for one release). Attestation Object v1 remains DRAFT during this stabilization phase. Legacy mode explicitly demoted to compatibility mode in docs.** | Planned |
 | **v0.9.0** | **Interop milestone + schema cleanup** | **First TypeScript verifier pass — minimum: canonicalization + core + trust-sanitization mode parity with Python on the same `conformance/manifest.json`, filtered to those three modes. `semi_trusted` removed from schema (was deprecated in v0.8.1). OpenAPI bridge spec, structured audit logs, Docker hardening for enterprise pilots. Spec drafts updated with cross-impl findings.** | Planned |
 | v0.9.1–v0.9.2 | Ambiguity burn-down | Differential Python ↔ TS testing, fuzzing canonicalization and malformed proposals/evidence, more number/Unicode edge vectors, additional malformed-evidence cases, TS evidence-mode parity completed if not landed at v0.9.0, wording tightening from cross-impl disagreements | Planned |
 | **v1.0.0** | **Production-grade protocol freeze** | **`strict_trust=True` becomes default and only conformant mode. Canonical attestation-object signing becomes default; legacy payload-string mode is non-conformant. `spec-core.md`, `spec-evidence.md`, and Attestation Object v1 all promoted to normative. PIC-CJSON/1.0 unchanged. Python + TS pass full conformance suite. Internet-Draft submission.** | Planned |
@@ -83,7 +83,7 @@ Specifications in this project are treated as evolving drafts until cross-implem
 
 ---
 
-## Current State (post-v0.8.0)
+## Current State (post-v0.8.1)
 
 ### What exists
 
@@ -114,6 +114,11 @@ Specifications in this project are treated as evolving drafts until cross-implem
 | **Conformance runner** | ✅ Done | `conformance/run.py` |
 | **Conformance CI workflow** | ✅ Done | `.github/workflows/conformance.yml` |
 | Canonicalization unit tests | ✅ Done | `tests/test_canonical.py` |
+| **`PICSemiTrustedDeprecationWarning` + field validator (canonical normalization boundary)** | ✅ Done (v0.8.1) | `sdk-python/pic_standard/verifier.py` |
+| **Bridge helper triggering field validator after JSON Schema validation** | ✅ Done (v0.8.1) | `sdk-python/pic_standard/pipeline.py` |
+| **Both deprecation-warning classes re-exported at package root** | ✅ Done (v0.8.1) | `sdk-python/pic_standard/__init__.py` |
+| **Verdict-regression matrix (permanent CI guard for the dict-vs-model boundary)** | ✅ Done (v0.8.1) | `tests/test_trust_deprecation_warning.py` |
+| **Project hygiene: `SECURITY.md`, `CODE_OF_CONDUCT.md`, `CITATION.cff`, README pointers** | ✅ Done (Phase 0, PR #67) | repo root |
 
 ### What still blocks "standard" status
 
@@ -125,9 +130,7 @@ Specifications in this project are treated as evolving drafts until cross-implem
 | Evidence-mode conformance missing | Portable verification of hash/sig evidence not yet part of shared vector execution |
 | Trust-sanitization-mode conformance missing | The v1 trust model must be executable, not just documented |
 | No second verifier implementation | Without Python + TS parity, PIC is not yet proven cross-language |
-| `semi_trusted` lacks strong protocol semantics | Defined in schema but with no normative role under the v0.7.5 Trust Axiom. Trajectory: deprecated v0.8.1 with warning, removed v0.9.0. |
-| `SECURITY.md` + `CODE_OF_CONDUCT.md` missing | OSS credibility / maturity gap |
-| `ROADMAP.md` missing from public main | Internal docs link to it; broken link from public's perspective |
+| `semi_trusted` removal still pending | Deprecation shipped in v0.8.1 (`PICSemiTrustedDeprecationWarning` + canonical normalization at the model-validation boundary). Schema-level removal scheduled for v0.9.0. |
 | Structured audit logs, OpenAPI, Docker hardening incomplete | Enterprise deployment story not yet strong enough |
 | Citation / external publication flow incomplete | Useful for standard-grade credibility |
 
@@ -144,6 +147,7 @@ Specifications in this project are treated as evolving drafts until cross-implem
 | Canonical signing rollout | Opt-in mode at v0.8.2; default at v1.0 | Mirrors `strict_trust` precedent: introduce as opt-in, side-by-side validate, flip default at the v1.0 freeze |
 | `strict_trust` end state | Default and only conformant mode at v1.0 | Prevents config hazards and trust confusion |
 | Trust enum semantics | Binary (`trusted` / `untrusted`) post-v0.9.0; legacy `semi_trusted` value being phased out (deprecated v0.8.1, removed v0.9.0) | The v0.7.5 Trust Axiom collapsed three trust levels into two operational categories; the schema is being reconciled accordingly |
+| `semi_trusted` normalization boundary | Pydantic field validator on `Provenance.trust` (canonical) + bridge helper in `verify_proposal()` triggering it post–JSON-Schema-validation. Any construction path that bypasses the validator is non-conformant | Established in v0.8.1. Locks the boundary against future refactors and gives the eventual TS verifier a clean target ("equivalent of pydantic field validator on the equivalent of `Provenance.trust`"). Verdict-regression matrix in `tests/` codifies this contract as a permanent CI guard |
 | Encoding | JSON core first | Lowest-friction adoption; optional CBOR only later |
 | Standardization target | Standalone PIC spec first, transport bindings second | PIC is broader than any single framework or protocol |
 | `key_id` format | Opaque string | Avoids migration friction and over-prescription |
@@ -152,29 +156,29 @@ Specifications in this project are treated as evolving drafts until cross-implem
 
 ---
 
-## Phase 0 — Repo Hygiene (immediate, single PR)
+## Phase 0 — Repo Hygiene (✅ shipped, PR #67)
 
-**Goal:** complete the minimal public-facing project hygiene expected of a serious protocol candidate. This is one small PR landing before v0.8.1 work begins.
+**Status:** Shipped via PR #67. This section is preserved as historical record of the scope that landed and the decisions made within it. The state-marker work (committing this ROADMAP, removing the stale `.gitignore` entry, adding `SECURITY.md` / `CODE_OF_CONDUCT.md`, bumping `CITATION.cff` to v0.8.0 metadata, adding README pointers, documenting the `semi_trusted` deprecation trajectory in `docs/migration-trust-sanitization.md`) is all on `main`.
 
-### Atomic PR scope
+### Atomic PR scope (as shipped)
 
-- [ ] **Commit `ROADMAP.md` (this file) to main.** Currently exists only on local working copies; tracked references from other docs are broken.
-- [ ] **Fix broken `../ROADMAP.md` references** in `docs/attestation-object-draft.md` (Status banner, Dependencies section, References section) and any other doc that links to `ROADMAP.md`.
-- [ ] **Document `semi_trusted` deprecation trajectory.** It exists in `proposal_schema.json` with no normative semantics under the v0.7.5 Trust Axiom — a vestigial value that suggests a verifier state that doesn't operationally exist. **The decision: deprecate at v0.8.1, remove at v0.9.0.**
-  
+- [x] **Commit `ROADMAP.md` (this file) to main.** Was on local working copies only at session start; tracked references from other docs were broken.
+- [x] **Fix broken `../ROADMAP.md` references** — audit determined no broken refs existed (all `../ROADMAP.md` references in `docs/` resolve correctly to repo root). Item closed without code change.
+- [x] **Document `semi_trusted` deprecation trajectory.** It exists in `proposal_schema.json` with no normative semantics under the v0.7.5 Trust Axiom — a vestigial value that suggests a verifier state that doesn't operationally exist. **The decision: deprecate at v0.8.1, remove at v0.9.0.**
+
   **Origin context (preserved for the record):** `semi_trusted` was day-1 design (introduced January 2026, before v0.1.0) capturing a real-world distinction between "authenticated but not cryptographically signed" and "fully unauthenticated" sources. Examples in the original example proposals: a Slack-authenticated message from a manager (`slack_approval_manager` in `examples/financial_irreversible.json`), a voice-ID-recognized operator command (`operator_voice_command` in `examples/robotic_action.json`). The v0.7.5 Trust Axiom (verifier-derived trust only) made this producer-declared distinction non-authoritative — verifiers can no longer act on producer-declared trust labels regardless of nuance. The original taxonomy collapsed from three levels into two operational categories, and `semi_trusted` became vestigial.
-  
-  **Trajectory:**
-  - **v0.8.1**: deprecated with `PICSemiTrustedDeprecationWarning`. Schema still accepts the value (one transition release). **All public proposal-ingestion paths** normalize `semi_trusted` to `untrusted` at parse time in **all** modes (not just under `strict_trust=True`). This includes `verify_proposal()`, direct `ActionProposal(...)` construction, the HTTP bridge, the LangGraph and MCP integrations, the CLI, and any other entry point that accepts a proposal. The cleanest implementation is normalization at the shared schema-validation boundary, before any verifier rule sees the value — that way every construction path inherits the normalization regardless of entry point, and the requirement is expressed in language-neutral terms that the TypeScript implementation can mirror in its own validation layer. Examples in `examples/*.json` updated to `untrusted` (no semantic change since `semi_trusted` was always advisory under the Trust Axiom). Migration note added to `docs/migration-trust-sanitization.md`.
-  - **v0.9.0**: removed from schema. Validation rejects any proposal with `provenance[].trust = "semi_trusted"`. Schema-validation-layer normalization, the deprecation warning class, and the `SEMI_TRUSTED` enum member in `verifier.py` are all deleted.
-  - **v1.0**: not a concern; already removed.
-  
-  This Phase 0 PR commits the **protocol direction** — deprecate in v0.8.1, remove in v0.9.0 — into `ROADMAP.md`. The actual schema/code/example changes happen in v0.8.1 (deprecation + normalization) and v0.9.0 (removal).
-- [ ] **Add `SECURITY.md`** — vulnerability reporting flow, supported versions, disclosure process.
-- [ ] **Add `CODE_OF_CONDUCT.md`** — standard Contributor Covenant or equivalent.
-- [ ] **Citation flow check** — ensure `CITATION.cff` is complete and the README's "How to cite" section (if any) is accurate.
 
-**Exit criteria:** the repo has the minimum credibility artifacts expected of a security-sensitive open protocol project; no internal links to nonexistent files; `semi_trusted` has a documented deprecation trajectory with a concrete v0.9.0 removal target.
+  **Trajectory:**
+  - **v0.8.1** (✅ shipped): deprecated with `PICSemiTrustedDeprecationWarning`. Schema still accepts the value (one transition release). The canonical normalization boundary is the pydantic field validator on `Provenance.trust` in `pic_standard.verifier`; `verify_proposal()` triggers that validator immediately after JSON Schema validation via a small bridge helper, so warnings fire and `semi_trusted` is normalized to `"untrusted"` regardless of `strict_trust` mode and before strict-trust flattening or evidence verification consume the dict. The `Provenance.trust` validator covers direct `Provenance(...)` / `ActionProposal(...)` construction outside the funnel as well — bypassing it is non-conformant with the v0.8.1 behavior contract. Examples migrated to `untrusted` (no semantic change since `semi_trusted` was always advisory under the Trust Axiom). Migration note added to `docs/migration-trust-sanitization.md`.
+  - **v0.9.0** (planned): removed from schema. Validation rejects any proposal with `provenance[].trust = "semi_trusted"`. The field validator's deprecation branch, the bridge helper, the `PICSemiTrustedDeprecationWarning` class, and the `SEMI_TRUSTED` enum member in `verifier.py` are all deleted.
+  - **v1.0**: not a concern; already removed.
+
+  Phase 0 committed the **protocol direction** — deprecate in v0.8.1, remove in v0.9.0 — into this ROADMAP. The actual schema/code/example changes happened in v0.8.1 (deprecation + normalization, ✅ shipped) and v0.9.0 (removal, planned).
+- [x] **Add `SECURITY.md`** — vulnerability reporting flow, supported versions, disclosure process.
+- [x] **Add `CODE_OF_CONDUCT.md`** — Contributor Covenant 2.1.
+- [x] **Citation flow check** — `CITATION.cff` updated to v0.8.0 metadata + concept DOI + v0.8.0 version DOI; README pointer added.
+
+**Exit criteria (all met):** the repo has the minimum credibility artifacts expected of a security-sensitive open protocol project; no internal links to nonexistent files; `semi_trusted` has a documented deprecation trajectory with a concrete v0.9.0 removal target.
 
 ---
 
@@ -196,7 +200,7 @@ Future canonicalization-related work is not "design canonicalization" but:
 ---
 
 ### 1.2 Conformance expansion
-**Target:** v0.8.1
+**Target:** v0.8.2 (deferred from v0.8.1)
 
 Expand the suite beyond first pass:
 
@@ -226,7 +230,7 @@ Expand the suite beyond first pass:
 ---
 
 ### 1.3 Initial DRAFT Core spec
-**Target:** v0.8.1
+**Target:** v0.8.2 (deferred from v0.8.1)
 
 **File:** `docs/spec-core.md` (DRAFT)
 
@@ -251,7 +255,7 @@ Conformant verifiers MUST treat inbound `provenance[].trust` values as non-autho
 ---
 
 ### 1.4 Initial DRAFT Evidence spec
-**Target:** v0.8.1
+**Target:** v0.8.2 (deferred from v0.8.1)
 
 **File:** `docs/spec-evidence.md` (DRAFT)
 
@@ -304,22 +308,25 @@ Canonical signing in v0.8.2 lands **behind explicit mode selection** (e.g., a `P
 ---
 
 ### 1.6 Schema cleanup: `semi_trusted` deprecation
-**Target:** v0.8.1 (deprecation), v0.9.0 (removal)
+**Target:** v0.8.1 (deprecation, ✅ shipped), v0.9.0 (removal, planned)
 
 Implements the trajectory committed in Phase 0.
 
-#### v0.8.1 work
-- New `PICSemiTrustedDeprecationWarning` warning class in `pipeline.py` (alongside or as a sibling of `PICTrustFutureWarning`).
-- **All public proposal-ingestion paths normalize `provenance[].trust = "semi_trusted"` → `"untrusted"` at parse time, in all modes** (not gated on `strict_trust=True`). The cleanest implementation is normalization at the shared schema-validation boundary, before any verifier rule sees the value — every construction path (`verify_proposal()`, direct `ActionProposal(...)` instantiation, HTTP bridge, LangGraph integration, MCP guard, CLI, and any future ingestion path) inherits the normalization regardless of entry point. The mechanism is intentionally specified in language-neutral terms; Python's reference implementation will likely use a pydantic field validator or equivalent, but the protocol-direction requirement is "normalize at the schema-validation boundary," not "use pydantic specifically." This decouples the deprecation from the strict-trust path **and** eliminates the determinism risk of normalization-by-entry-point (where a pipeline-only patch would let direct verifier construction silently skip normalization).
-- Warning fires once per parse where `semi_trusted` is encountered, with migration guidance message.
-- `examples/financial_irreversible.json` and `examples/robotic_action.json` updated to use `"untrusted"` for the previously-`semi_trusted` provenance entries (no behavioral change since the verifier was already treating these as non-authoritative).
-- New section in `docs/migration-trust-sanitization.md`: "`semi_trusted` deprecation and removal trajectory."
-- CHANGELOG v0.8.1 "Deprecated" entry naming the v0.9.0 removal target.
+#### v0.8.1 work (✅ shipped)
+- ✅ New `PICSemiTrustedDeprecationWarning` warning class — defined in `pic_standard.verifier` (model-layer concern, co-located with the `Provenance` model that fires it), subclasses `FutureWarning` so it's visible in Python's default warning filters, also re-exported at the `pic_standard` package root alongside `PICTrustFutureWarning`.
+- ✅ **Canonical normalization boundary** is a pydantic field validator on `Provenance.trust` (`mode='before'`). Any code path that constructs a `Provenance` (or `ActionProposal`, which cascades) sees the warning + automatic normalization to `"untrusted"`; any path that bypasses the validator is non-conformant with the v0.8.1 behavior contract. Covers direct model construction outside `verify_proposal()` (HTTP bridge, LangGraph, MCP, CLI all funnel through `verify_proposal()`, but the validator is the safety net for any future direct-construction paths).
+- ✅ **Bridge helper in `pic_standard.pipeline`** (`_normalize_provenance_entries_via_model_validator`) triggers the validator on raw provenance entries immediately after JSON Schema validation in `verify_proposal()`. This ensures the warning fires regardless of `strict_trust` mode (without it, strict-trust dict-level flattening would happen first and silently mask the deprecated value). Full `ActionProposal` instantiation still happens later in the pipeline, after evidence verification, so `verify_causal_contract` continues to observe the final post-evidence trust state — the existing `untrusted → evidence verified → trusted` upgrade path is unaffected.
+- ✅ Warning fires once per `Provenance` instance constructed with `semi_trusted` (per-entry, not once-per-proposal). Multiple `semi_trusted` entries in one proposal → multiple warnings.
+- ✅ `examples/financial_irreversible.json` and `examples/robotic_action.json` migrated off `trust: "semi_trusted"` to `trust: "untrusted"`. **Trust-flip only — no hash evidence added.** Adding hash evidence to a Slack message or voice transcript would have been semantically misleading (hash binds bytes, not authority), so the migration is the smallest honest change. The load-bearing `"trusted"` provenance entries (`cfo_signed_invoice_hash`, `lidar_safety_trigger`) are unchanged.
+- ✅ New section in `docs/migration-trust-sanitization.md`: `semi_trusted` deprecation Q&A flipped from "(planned)" to "(this release)" tense; Timeline table gained a v0.8.1 row.
+- ✅ CHANGELOG v0.8.1 "Deprecated" section names the v0.9.0 removal target.
+- ✅ **Verdict-regression matrix** codified in `tests/test_trust_deprecation_warning.py` — parametrized test (24 rows × 6 example proposals × the `strict_trust × verify_evidence` matrix) that pins v0.8.0 baseline `verify_proposal()` outcomes (`ok` and `error.code` only — stable fields, asserted against `PICErrorCode` enum members). Stays in the suite as a permanent CI guard against any future refactor that touches the dict-vs-model boundary.
 
-#### v0.9.0 work
+#### v0.9.0 work (planned)
 - Remove `"semi_trusted"` from the trust enum in `proposal_schema.json`. Schema validation now rejects any proposal containing it.
 - Remove the `SEMI_TRUSTED` enum member from `verifier.py`.
-- Remove the schema-validation-layer normalization code path.
+- Remove the `Provenance.trust` field validator's `semi_trusted` branch (the validator may be removed entirely or kept for future deprecation patterns).
+- Remove the `_normalize_provenance_entries_via_model_validator` bridge helper from `pipeline.py`.
 - Remove the `PICSemiTrustedDeprecationWarning` class.
 - CHANGELOG v0.9.0 "Removed" entry; references the v0.8.1 deprecation cycle.
 
@@ -472,12 +479,12 @@ These are important but stay downstream of a stable core:
 
 | # | PR | Phase | Target |
 |---|----|-------|--------|
-| 1 | **Phase 0 hygiene PR**: commit ROADMAP.md, fix broken roadmap-link refs, document `semi_trusted` deprecation trajectory (Path B: deprecate v0.8.1, remove v0.9.0), add SECURITY.md and CODE_OF_CONDUCT.md | 0 | immediate |
-| 2 | Conformance expansion: evidence-mode + trust-sanitization vectors | 1.2 | v0.8.1 |
-| 3 | Runner hardening: JSON output, filtering, machine-readable diagnostics | 1.2 | v0.8.1 |
-| 4 | Initial DRAFT `docs/spec-core.md` | 1.3 | v0.8.1 |
-| 5 | Initial DRAFT `docs/spec-evidence.md` | 1.4 | v0.8.1 |
-| 6 | `semi_trusted` deprecation: `PICSemiTrustedDeprecationWarning` + schema-validation-layer normalization across all ingestion paths + example updates + migration note | 1.6 | v0.8.1 |
+| 1 | **Phase 0 hygiene PR**: commit ROADMAP.md, fix broken roadmap-link refs, document `semi_trusted` deprecation trajectory (Path B: deprecate v0.8.1, remove v0.9.0), add SECURITY.md and CODE_OF_CONDUCT.md | 0 | ✅ Done (PR #67) |
+| 2 | Conformance expansion: evidence-mode + trust-sanitization vectors | 1.2 | v0.8.2 (deferred from v0.8.1) |
+| 3 | Runner hardening: JSON output, filtering, machine-readable diagnostics | 1.2 | v0.8.2 (deferred from v0.8.1) |
+| 4 | Initial DRAFT `docs/spec-core.md` | 1.3 | v0.8.2 (deferred from v0.8.1) |
+| 5 | Initial DRAFT `docs/spec-evidence.md` | 1.4 | v0.8.2 (deferred from v0.8.1) |
+| 6 | `semi_trusted` deprecation: `PICSemiTrustedDeprecationWarning` + canonical normalization at the model-validation boundary (pydantic field validator on `Provenance.trust` + bridge helper triggering it after JSON Schema validation) + example trust-flips + migration note + verdict-regression matrix | 1.6 | ✅ Done (v0.8.1) |
 | 7 | Wire canonical attestation signing into runtime as opt-in mode (against draft Attestation v1) | 1.5 | v0.8.2 |
 | 8 | `docs/ERRORS.md` formalization | 2.1 | v0.8.2 / v0.9.0 |
 | 9 | `semi_trusted` removal: schema enum drop + code cleanup | 1.6 | v0.9.0 |
@@ -498,14 +505,16 @@ PIC already has the hardest foundation work behind it:
 - Trust-hardening direction
 - Canonical byte model (PIC-CJSON/1.0 frozen)
 - Conformance artifacts (canonicalization + core)
+- Trust-enum cleanup in motion (`semi_trusted` deprecated v0.8.1, removal scheduled v0.9.0)
+- Project hygiene (SECURITY/CoC/Citation/ROADMAP all on `main` post-Phase-0)
 
 From here, the shortest path to becoming a standard protocol is:
 
-1. **Finish normative semantics** — `spec-core.md`, `spec-evidence.md` (both DRAFT v0.8.1 → frozen v1.0)
+1. **Finish normative semantics** — `spec-core.md`, `spec-evidence.md` (both DRAFT v0.8.2 → frozen v1.0)
 2. **Complete conformance** — evidence mode, trust-sanitization mode, ambiguity burn-down
 3. **Make canonical bytes the real runtime signing contract** — opt-in v0.8.2, default v1.0
 4. **Build a second verifier** — TypeScript (v0.9.0 minimum scope, v0.9.x full parity)
-5. **Reconcile the trust enum** — `semi_trusted` deprecated v0.8.1, removed v0.9.0
+5. **Reconcile the trust enum** — `semi_trusted` deprecated v0.8.1 (✅), removed v0.9.0
 6. **Freeze behavior** — v1.0.0
 
 That is the path this roadmap follows.

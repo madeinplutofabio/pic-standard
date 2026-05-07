@@ -25,7 +25,7 @@ That channel is end-to-end private to the maintainers and produces a coordinated
 
 ## What to include in a report
 
-- **Affected version(s):** the PIC release(s) you reproduced the issue on (e.g., 0.8.0)
+- **Affected version(s):** the PIC release(s) you reproduced the issue on (e.g., 0.8.1)
 - **Component:** which part of the codebase is affected (e.g., `pic_standard.canonical`, `pic_standard.verifier`, `integrations/openclaw`, conformance vectors)
 - **Reproduction:** the smallest input or sequence of operations that triggers the issue — include exact commands, file contents, and environment details if relevant
 - **Impact assessment:** what an attacker can do with the issue. Be concrete: information disclosure, signature bypass, denial of service, integrity violation, canonicalization mismatch leading to verification bypass, etc.
