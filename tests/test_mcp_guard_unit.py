@@ -2,8 +2,8 @@ from __future__ import annotations
 
 import asyncio
 
-from pic_standard.policy import PICPolicy
 from pic_standard.integrations.mcp_pic_guard import guard_mcp_tool, guard_mcp_tool_async
+from pic_standard.policy import PICPolicy
 
 
 def _tool(amount: int) -> str:
@@ -118,8 +118,11 @@ def test_guard_sync_strict_trust_blocks_self_asserted_trust():
     """strict_trust=True via guard_mcp_tool → pipeline sanitizes trust → blocked."""
     policy = PICPolicy(impact_by_tool={"payments_send": "money"})
     wrapped = guard_mcp_tool(
-        "payments_send", _tool, policy=policy,
-        verify_evidence=False, strict_trust=True,
+        "payments_send",
+        _tool,
+        policy=policy,
+        verify_evidence=False,
+        strict_trust=True,
     )
 
     out = wrapped(amount=500, __pic=_proposal("trusted"))
@@ -133,8 +136,11 @@ def test_guard_async_strict_trust_blocks_self_asserted_trust():
     """strict_trust=True via guard_mcp_tool_async → pipeline sanitizes trust → blocked."""
     policy = PICPolicy(impact_by_tool={"payments_send": "money"})
     wrapped = guard_mcp_tool_async(
-        "payments_send", _async_tool, policy=policy,
-        verify_evidence=False, strict_trust=True,
+        "payments_send",
+        _async_tool,
+        policy=policy,
+        verify_evidence=False,
+        strict_trust=True,
     )
 
     out = asyncio.run(wrapped(amount=500, __pic=_proposal("trusted")))
@@ -169,7 +175,9 @@ def test_guard_sync_passes_key_resolver(monkeypatch):
     resolver = object()
     policy = PICPolicy(impact_by_tool={"payments_send": "money"})
     wrapped = guard_mcp_tool(
-        "payments_send", _tool, policy=policy,
+        "payments_send",
+        _tool,
+        policy=policy,
         key_resolver=resolver,
     )
 
@@ -203,7 +211,9 @@ def test_guard_async_passes_key_resolver(monkeypatch):
     resolver = object()
     policy = PICPolicy(impact_by_tool={"payments_send": "money"})
     wrapped = guard_mcp_tool_async(
-        "payments_send", _async_tool, policy=policy,
+        "payments_send",
+        _async_tool,
+        policy=policy,
         key_resolver=resolver,
     )
 

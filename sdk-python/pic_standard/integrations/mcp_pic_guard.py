@@ -9,6 +9,7 @@ from typing import Any, Awaitable, Callable, Dict, Optional, Tuple
 
 from pic_standard.errors import PICError, PICErrorCode, _debug_enabled
 from pic_standard.pipeline import (
+    ActionProposal,
     PICEvaluateLimits,
     PipelineOptions,
     verify_proposal,
@@ -95,7 +96,7 @@ def evaluate_pic_for_tool_call(
     request_id: Optional[str] = None,
     strict_trust: bool = False,
     key_resolver: Any = None,
-) -> Tuple[Optional["ActionProposal"], Dict[str, Any]]:
+) -> Tuple[Optional[ActionProposal], Dict[str, Any]]:
     """
     Evaluate PIC for a tool call. Fail-closed via PICError.
 
@@ -142,17 +143,20 @@ def evaluate_pic_for_tool_call(
         )
 
     # Delegate to shared pipeline
-    result = verify_proposal(proposal, options=PipelineOptions(
-        tool_name=tool_name,
-        expected_tool=tool_name,
-        policy=policy,
-        limits=limits,
-        verify_evidence=verify_evidence,
-        proposal_base_dir=proposal_base_dir,
-        evidence_root_dir=evidence_root_dir,
-        strict_trust=strict_trust,
-        key_resolver=key_resolver,
-    ))
+    result = verify_proposal(
+        proposal,
+        options=PipelineOptions(
+            tool_name=tool_name,
+            expected_tool=tool_name,
+            policy=policy,
+            limits=limits,
+            verify_evidence=verify_evidence,
+            proposal_base_dir=proposal_base_dir,
+            evidence_root_dir=evidence_root_dir,
+            strict_trust=strict_trust,
+            key_resolver=key_resolver,
+        ),
+    )
 
     if not result.ok:
         # Pipeline returned an error — re-raise as PICError for MCP envelope handling
@@ -250,8 +254,14 @@ def guard_mcp_tool(
             return {"isError": True, "error": _mcp_error_payload(e)}
 
         except Exception as e:
-            details = {"exception_type": type(e).__name__, "exception": str(e)} if _debug_enabled() else None
-            pe = PICError(PICErrorCode.INTERNAL_ERROR, "Internal error while enforcing PIC", details=details)
+            details = (
+                {"exception_type": type(e).__name__, "exception": str(e)}
+                if _debug_enabled()
+                else None
+            )
+            pe = PICError(
+                PICErrorCode.INTERNAL_ERROR, "Internal error while enforcing PIC", details=details
+            )
             _audit_decision(
                 decision="block",
                 tool_name=tool_name,
@@ -309,7 +319,9 @@ def guard_mcp_tool_async(
 
             if max_tool_ms is not None:
                 try:
-                    result = await asyncio.wait_for(tool_fn(**kwargs), timeout=float(max_tool_ms) / 1000.0)
+                    result = await asyncio.wait_for(
+                        tool_fn(**kwargs), timeout=float(max_tool_ms) / 1000.0
+                    )
                 except asyncio.TimeoutError as e:
                     details = {"max_tool_ms": int(max_tool_ms)} if _debug_enabled() else None
                     raise PICError(
@@ -334,8 +346,14 @@ def guard_mcp_tool_async(
             return {"isError": True, "error": _mcp_error_payload(e)}
 
         except Exception as e:
-            details = {"exception_type": type(e).__name__, "exception": str(e)} if _debug_enabled() else None
-            pe = PICError(PICErrorCode.INTERNAL_ERROR, "Internal error while enforcing PIC", details=details)
+            details = (
+                {"exception_type": type(e).__name__, "exception": str(e)}
+                if _debug_enabled()
+                else None
+            )
+            pe = PICError(
+                PICErrorCode.INTERNAL_ERROR, "Internal error while enforcing PIC", details=details
+            )
             _audit_decision(
                 decision="block",
                 tool_name=tool_name,
@@ -347,5 +365,3 @@ def guard_mcp_tool_async(
             return {"isError": True, "error": _mcp_error_payload(pe)}
 
     return wrapped
-
-

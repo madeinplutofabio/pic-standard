@@ -35,7 +35,9 @@ def test_time_budget_exceeded_blocks(monkeypatch):
 
     policy = PICPolicy(impact_by_tool={"payments_send": "money"})
     limits = PICEvaluateLimits(max_eval_ms=10)  # 10ms budget (will be exceeded by fake time jumps)
-    wrapped = guard_mcp_tool("payments_send", _tool, policy=policy, limits=limits, verify_evidence=False)
+    wrapped = guard_mcp_tool(
+        "payments_send", _tool, policy=policy, limits=limits, verify_evidence=False
+    )
 
     out = wrapped(amount=500, __pic=_proposal("trusted"))
 

@@ -5,24 +5,25 @@ import json
 import os
 from pathlib import Path
 
-from jsonschema import validate as js_validate, ValidationError
+from jsonschema import ValidationError
+from jsonschema import validate as js_validate
 
-from .evidence import EvidenceSystem
-from .config import load_policy, dump_policy
+from .config import dump_policy, load_policy
 from .errors import PICErrorCode
-from .pipeline import PipelineOptions, verify_proposal, _load_packaged_schema
+from .evidence import EvidenceSystem
 
 # NEW: keys command
-from .keyring import TrustedKeyRing, KeyRingError
+from .keyring import KeyRingError, TrustedKeyRing
+from .pipeline import PipelineOptions, _load_packaged_schema, verify_proposal
 
 
 def load_json(path: Path) -> dict:
     try:
         return json.loads(path.read_text(encoding="utf-8"))
     except FileNotFoundError:
-        raise SystemExit(f"File not found: {path}")
+        raise SystemExit(f"File not found: {path}") from None
     except json.JSONDecodeError as e:
-        raise SystemExit(f"Invalid JSON in {path}: {e}")
+        raise SystemExit(f"Invalid JSON in {path}: {e}") from None
 
 
 def cmd_schema(proposal_path: Path) -> int:
@@ -78,11 +79,14 @@ def cmd_verify(proposal_path: Path, *, verify_evidence: bool = False) -> int:
 
     proposal = load_json(proposal_path)
 
-    result = verify_proposal(proposal, options=PipelineOptions(
-        verify_evidence=verify_evidence,
-        proposal_base_dir=proposal_path.parent,
-        evidence_root_dir=proposal_path.parent,
-    ))
+    result = verify_proposal(
+        proposal,
+        options=PipelineOptions(
+            verify_evidence=verify_evidence,
+            proposal_base_dir=proposal_path.parent,
+            evidence_root_dir=proposal_path.parent,
+        ),
+    )
 
     if result.ok:
         print("✅ Verifier passed")
@@ -268,13 +272,18 @@ def build_parser() -> argparse.ArgumentParser:
     s2.add_argument(
         "--verify-evidence",
         action="store_true",
-        help="Verify evidence (v0.3: sha256) and upgrade provenance to TRUSTED based on verified IDs before running verifier.",
+        help=(
+            "Verify evidence (v0.3: sha256) and upgrade provenance to TRUSTED "
+            "based on verified IDs before running verifier."
+        ),
     )
 
     s3 = sub.add_parser("evidence-verify", help="Verify evidence only (v0.3: sha256)")
     s3.add_argument("proposal", type=Path)
 
-    s4 = sub.add_parser("policy", help="Show the effective policy loaded from pic_policy.json / PIC_POLICY_PATH")
+    s4 = sub.add_parser(
+        "policy", help="Show the effective policy loaded from pic_policy.json / PIC_POLICY_PATH"
+    )
     s4.add_argument(
         "--repo-root",
         type=Path,
@@ -287,7 +296,9 @@ def build_parser() -> argparse.ArgumentParser:
         help="Print an example policy JSON you can save as pic_policy.json.",
     )
 
-    s5 = sub.add_parser("keys", help="Validate and print trusted signer keys (for signature evidence v0.4+)")
+    s5 = sub.add_parser(
+        "keys", help="Validate and print trusted signer keys (for signature evidence v0.4+)"
+    )
     s5.add_argument(
         "--repo-root",
         type=Path,
@@ -300,7 +311,9 @@ def build_parser() -> argparse.ArgumentParser:
         help="Print an example pic_keys.json you can save and edit.",
     )
 
-    s6 = sub.add_parser("serve", help="Start the PIC HTTP bridge server for non-Python integrations")
+    s6 = sub.add_parser(
+        "serve", help="Start the PIC HTTP bridge server for non-Python integrations"
+    )
     s6.add_argument(
         "--host",
         default="127.0.0.1",
@@ -337,9 +350,15 @@ def main(argv: list[str] | None = None) -> int:
     if args.command == "verify":
         return cmd_verify(args.proposal, verify_evidence=getattr(args, "verify_evidence", False))
     if args.command == "policy":
-        return cmd_policy(repo_root=getattr(args, "repo_root"), write_example=getattr(args, "write_example", False))
+        return cmd_policy(
+            repo_root=args.repo_root,
+            write_example=getattr(args, "write_example", False),
+        )
     if args.command == "keys":
-        return cmd_keys(repo_root=getattr(args, "repo_root"), write_example=getattr(args, "write_example", False))
+        return cmd_keys(
+            repo_root=args.repo_root,
+            write_example=getattr(args, "write_example", False),
+        )
     if args.command == "serve":
         return cmd_serve(
             host=args.host,

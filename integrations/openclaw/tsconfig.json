@@ -8,20 +8,8 @@
         "strict": true,
         "esModuleInterop": true,
         "skipLibCheck": true,
-        "typeRoots": [
-            "./types",
-            "./node_modules/@types"
-        ]
+        "typeRoots": ["./types", "./node_modules/@types"]
     },
-    "include": [
-        "*.ts",
-        "lib/**/*.ts",
-        "hooks/**/*.ts",
-        "types/**/*.d.ts"
-    ],
-    "exclude": [
-        "node_modules",
-        "dist",
-        "**/*.test.ts"
-    ]
+    "include": ["*.ts", "lib/**/*.ts", "hooks/**/*.ts", "types/**/*.d.ts"],
+    "exclude": ["node_modules", "dist", "**/*.test.ts"]
 }

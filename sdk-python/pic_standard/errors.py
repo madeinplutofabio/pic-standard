@@ -14,7 +14,8 @@ class PICErrorCode(str, Enum):
 
     # Schema / verifier
     SCHEMA_INVALID = "PIC_SCHEMA_INVALID"
-    VERIFIER_FAILED = "PIC_VERIFIER_FAILED"       # ActionProposal instantiation (pydantic + causal rules) — see pipeline.py
+    # ActionProposal instantiation (pydantic + causal rules) - see pipeline.py
+    VERIFIER_FAILED = "PIC_VERIFIER_FAILED"
     TOOL_BINDING_MISMATCH = "PIC_TOOL_BINDING_MISMATCH"
 
     # Evidence
@@ -22,16 +23,16 @@ class PICErrorCode(str, Enum):
     EVIDENCE_FAILED = "PIC_EVIDENCE_FAILED"
 
     # Policy
-    POLICY_VIOLATION = "PIC_POLICY_VIOLATION"      # policy-level block (distinct from verifier rules)
+    POLICY_VIOLATION = "PIC_POLICY_VIOLATION"  # policy-level block (distinct from verifier rules)
 
     # Internal (catch-all for unexpected errors in guard wrappers / pipeline)
     INTERNAL_ERROR = "PIC_INTERNAL_ERROR"
 
 
-
 @dataclass
 class PICError(Exception):
     """A structured error that can be safely returned to callers."""
+
     code: PICErrorCode
     message: str
     details: Optional[Dict[str, Any]] = None

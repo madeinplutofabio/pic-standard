@@ -4,21 +4,21 @@ import base64
 import hashlib
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Set, Union
+from typing import Any, Dict, List, Literal, Optional, Set, Union
 from urllib.parse import urlparse
 
 from pydantic import BaseModel, Field
-from typing import Literal
 
 from pic_standard.keyring import KeyResolver, StaticKeyRingResolver, TrustedKeyRing
-
 
 # ----------------------------
 # Models (match schema intent)
 # ----------------------------
 
+
 class HashEvidenceRef(BaseModel):
     """v0.3: deterministic sha256 over file bytes."""
+
     id: str
     type: Literal["hash"] = "hash"
     ref: str = Field(..., description="file://... (sandboxed)")
@@ -28,6 +28,7 @@ class HashEvidenceRef(BaseModel):
 
 class SigEvidenceRef(BaseModel):
     """v0.4: Ed25519 signature over payload bytes."""
+
     id: str
     type: Literal["sig"] = "sig"
 
@@ -49,6 +50,7 @@ EvidenceRef = Union[HashEvidenceRef, SigEvidenceRef]
 # Report types
 # ----------------------------
 
+
 @dataclass
 class EvidenceResult:
     id: str
@@ -66,6 +68,7 @@ class EvidenceReport:
 # ----------------------------
 # Helpers
 # ----------------------------
+
 
 def _compute_sha256(data: bytes) -> str:
     return hashlib.sha256(data).hexdigest()
@@ -115,10 +118,7 @@ def _resolve_file_uri_path(ref: str, *, base_dir: Path) -> Path:
 
     p = Path(combined)
 
-    if not p.is_absolute():
-        p = (base_dir / p).resolve()
-    else:
-        p = p.resolve()
+    p = (base_dir / p).resolve() if not p.is_absolute() else p.resolve()
 
     return p
 
@@ -157,7 +157,9 @@ def _b64decode(s: str, *, what: str, strict: bool = False) -> bytes:
         if strict:
             raw = s.strip()
             if raw != s:
-                raise ValueError(f"Invalid base64 for {what}: leading/trailing whitespace not allowed")
+                raise ValueError(
+                    f"Invalid base64 for {what}: leading/trailing whitespace not allowed"
+                )
             if "-" in raw or "_" in raw:
                 raise ValueError(f"Invalid base64 for {what}: URL-safe base64 alphabet not allowed")
             if len(raw) % 4 != 0:
@@ -196,6 +198,7 @@ def _verify_ed25519_signature(*, public_key_raw: bytes, signature_b64: str, mess
 # EvidenceSystem
 # ----------------------------
 
+
 class EvidenceSystem:
     """Evidence verification engine.
 
@@ -213,8 +216,8 @@ class EvidenceSystem:
         self,
         *,
         key_resolver: Optional[KeyResolver] = None,
-        max_file_bytes: int = 5 * 1024 * 1024,   # 5MB
-        max_payload_bytes: int = 16 * 1024,       # 16KB payload cap (DoS guard)
+        max_file_bytes: int = 5 * 1024 * 1024,  # 5MB
+        max_payload_bytes: int = 16 * 1024,  # 16KB payload cap (DoS guard)
         allow_file_evidence: bool = True,
         allow_sig_evidence: bool = True,
     ) -> None:
@@ -322,7 +325,8 @@ class EvidenceSystem:
                 payload_bytes = ev.payload.encode("utf-8")
                 if len(payload_bytes) > self.max_payload_bytes:
                     raise ValueError(
-                        f"Payload too large: {len(payload_bytes)} bytes (max {self.max_payload_bytes})"
+                        f"Payload too large: {len(payload_bytes)} bytes "
+                        f"(max {self.max_payload_bytes})"
                     )
 
                 pub_raw = self._resolve_public_key(ev.key_id)
@@ -357,7 +361,9 @@ class EvidenceSystem:
         return EvidenceReport(ok=ok, results=results, verified_ids=verified)
 
 
-def apply_verified_ids_to_provenance(proposal: Dict[str, Any], verified_ids: Set[str]) -> Dict[str, Any]:
+def apply_verified_ids_to_provenance(
+    proposal: Dict[str, Any], verified_ids: Set[str]
+) -> Dict[str, Any]:
     """Upgrade provenance trust levels in-memory based on verified evidence IDs.
 
     v0.3/v0.4 behavior:
@@ -376,4 +382,3 @@ def apply_verified_ids_to_provenance(proposal: Dict[str, Any], verified_ids: Set
 
     out["provenance"] = prov
     return out
-

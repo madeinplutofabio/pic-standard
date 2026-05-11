@@ -2,12 +2,10 @@ from __future__ import annotations
 
 import json
 import os
-from dataclasses import asdict
 from pathlib import Path
 from typing import Any, Dict, Optional
 
 from pic_standard.policy import PICPolicy
-
 
 DEFAULT_FILENAMES = ("pic_policy.json", "pic_policy.local.json")
 
@@ -25,8 +23,16 @@ def policy_from_dict(data: Dict[str, Any]) -> PICPolicy:
     if not isinstance(impact_by_tool, dict):
         raise ValueError("impact_by_tool must be a JSON object mapping tool->impact")
 
-    require_pic_for_impacts = _coerce_set(data.get("require_pic_for_impacts")) or {"money", "privacy", "irreversible"}
-    require_evidence_for_impacts = _coerce_set(data.get("require_evidence_for_impacts")) or {"money", "privacy", "irreversible"}
+    require_pic_for_impacts = _coerce_set(data.get("require_pic_for_impacts")) or {
+        "money",
+        "privacy",
+        "irreversible",
+    }
+    require_evidence_for_impacts = _coerce_set(data.get("require_evidence_for_impacts")) or {
+        "money",
+        "privacy",
+        "irreversible",
+    }
 
     return PICPolicy(
         impact_by_tool={str(k): str(v) for k, v in impact_by_tool.items()},

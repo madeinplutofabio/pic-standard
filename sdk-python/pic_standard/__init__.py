@@ -1,18 +1,18 @@
+from .keyring import KeyResolver, StaticKeyRingResolver
+from .pipeline import PICTrustFutureWarning
 from .verifier import (
     ActionProposal,
     ImpactClass,
-    TrustLevel,
     PICSemiTrustedDeprecationWarning,
+    TrustLevel,
 )
-from .keyring import KeyResolver, StaticKeyRingResolver
-from .pipeline import PICTrustFutureWarning
 
 __all__ = [
     "ActionProposal",
     "ImpactClass",
-    "TrustLevel",
     "KeyResolver",
-    "StaticKeyRingResolver",
     "PICSemiTrustedDeprecationWarning",
     "PICTrustFutureWarning",
+    "StaticKeyRingResolver",
+    "TrustLevel",
 ]

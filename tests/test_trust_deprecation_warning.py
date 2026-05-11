@@ -21,7 +21,7 @@ import warnings
 from pathlib import Path
 
 import pytest
-
+from conftest import make_proposal
 from pic_standard.errors import PICErrorCode
 from pic_standard.pipeline import (
     PICTrustFutureWarning,
@@ -34,8 +34,6 @@ from pic_standard.verifier import (
     Provenance,
     TrustLevel,
 )
-
-from conftest import make_proposal
 
 
 class TestTrustFutureWarning:
@@ -62,12 +60,14 @@ class TestTrustFutureWarning:
         proposal = make_proposal(
             trust="trusted",
             impact="money",
-            extra_evidence=[{
-                "id": "approved_invoice",
-                "type": "hash",
-                "ref": "file://nonexistent.txt",
-                "sha256": "0" * 64,
-            }],
+            extra_evidence=[
+                {
+                    "id": "approved_invoice",
+                    "type": "hash",
+                    "ref": "file://nonexistent.txt",
+                    "sha256": "0" * 64,
+                }
+            ],
         )
         with warnings.catch_warnings(record=True) as caught:
             warnings.simplefilter("always")
@@ -98,8 +98,10 @@ class TestTrustFutureWarning:
     def test_no_warning_when_trust_is_untrusted(self) -> None:
         """trust='untrusted' → no warning (nothing to warn about)."""
         proposal = make_proposal(
-            trust="untrusted", impact="read",
-            tool="docs_search", intent="Search docs",
+            trust="untrusted",
+            impact="read",
+            tool="docs_search",
+            intent="Search docs",
         )
         with warnings.catch_warnings(record=True) as caught:
             warnings.simplefilter("always")
@@ -118,8 +120,10 @@ class TestTrustFutureWarning:
         only asserts the absence of the OTHER warning class.
         """
         proposal = make_proposal(
-            trust="semi_trusted", impact="read",
-            tool="docs_search", intent="Search docs",
+            trust="semi_trusted",
+            impact="read",
+            tool="docs_search",
+            intent="Search docs",
         )
         with warnings.catch_warnings(record=True) as caught:
             warnings.simplefilter("always")
@@ -162,6 +166,7 @@ class TestTrustFutureWarning:
 # ============================================================================
 # v0.8.1: PICSemiTrustedDeprecationWarning
 # ============================================================================
+
 
 class TestSemiTrustedDeprecationWarning:
     """PICSemiTrustedDeprecationWarning fires when a Provenance entry is
@@ -213,8 +218,10 @@ class TestSemiTrustedDeprecationWarning:
         """Non-strict mode: bridge helper triggers validator, warning fires,
         semi_trusted -> untrusted, existing verdict behavior preserved."""
         proposal = make_proposal(
-            trust="semi_trusted", impact="read",
-            tool="docs_search", intent="search",
+            trust="semi_trusted",
+            impact="read",
+            tool="docs_search",
+            intent="search",
         )
         with pytest.warns(PICSemiTrustedDeprecationWarning):
             r = verify_proposal(proposal, options=PipelineOptions(strict_trust=False))
@@ -226,8 +233,10 @@ class TestSemiTrustedDeprecationWarning:
         whole reason the pipeline triggers the validator early instead of relying
         on full ActionProposal instantiation alone."""
         proposal = make_proposal(
-            trust="semi_trusted", impact="read",
-            tool="docs_search", intent="search",
+            trust="semi_trusted",
+            impact="read",
+            tool="docs_search",
+            intent="search",
         )
         with pytest.warns(PICSemiTrustedDeprecationWarning):
             r = verify_proposal(proposal, options=PipelineOptions(strict_trust=True))
@@ -238,8 +247,10 @@ class TestSemiTrustedDeprecationWarning:
         exactly one PICSemiTrustedDeprecationWarning fires (for the single
         semi_trusted entry); trusted and untrusted pass through unchanged."""
         proposal = make_proposal(
-            trust="trusted", impact="read",
-            tool="docs_search", intent="search",
+            trust="trusted",
+            impact="read",
+            tool="docs_search",
+            intent="search",
             extra_provenance=[
                 {"id": "p2", "trust": "semi_trusted"},
                 {"id": "p3", "trust": "untrusted"},
@@ -254,8 +265,10 @@ class TestSemiTrustedDeprecationWarning:
     def test_no_warning_when_no_semi_trusted_present(self) -> None:
         """Regression guard: no semi_trusted -> no PICSemiTrustedDeprecationWarning."""
         proposal = make_proposal(
-            trust="untrusted", impact="read",
-            tool="docs_search", intent="search",
+            trust="untrusted",
+            impact="read",
+            tool="docs_search",
+            intent="search",
         )
         with warnings.catch_warnings(record=True) as caught:
             warnings.simplefilter("always")
@@ -322,15 +335,14 @@ EXAMPLES_DIR = Path(__file__).resolve().parent.parent / "examples"
 # (filename, strict_trust, verify_evidence, expected_ok, expected_error_code_or_None)
 VERDICT_REGRESSION_MATRIX: list[tuple[str, bool, bool, bool, PICErrorCode | None]] = [
     # Low-impact: always allowed regardless of trust
-    ("compute_risk.json",            False, False, True,  None),
-    ("compute_risk.json",            False, True,  True,  None),
-    ("compute_risk.json",            True,  False, True,  None),
-    ("compute_risk.json",            True,  True,  True,  None),
-    ("read_only_query.json",         False, False, True,  None),
-    ("read_only_query.json",         False, True,  True,  None),
-    ("read_only_query.json",         True,  False, True,  None),
-    ("read_only_query.json",         True,  True,  True,  None),
-
+    ("compute_risk.json", False, False, True, None),
+    ("compute_risk.json", False, True, True, None),
+    ("compute_risk.json", True, False, True, None),
+    ("compute_risk.json", True, True, True, None),
+    ("read_only_query.json", False, False, True, None),
+    ("read_only_query.json", False, True, True, None),
+    ("read_only_query.json", True, False, True, None),
+    ("read_only_query.json", True, True, True, None),
     # CANARY for "did instantiation move ahead of evidence verification?".
     # financial_hash_ok.json has high-impact (money) + untrusted provenance +
     # hash evidence. With verify_evidence=True the hash must verify and upgrade
@@ -338,30 +350,27 @@ VERDICT_REGRESSION_MATRIX: list[tuple[str, bool, bool, bool, PICErrorCode | None
     # refactor moves full ActionProposal instantiation ahead of evidence
     # verification, these two ok=True rows flip to ok=False — the test fails
     # immediately and points at the regression.
-    ("financial_hash_ok.json",       False, False, False, PICErrorCode.VERIFIER_FAILED),
-    ("financial_hash_ok.json",       False, True,  True,  None),                          # canary
-    ("financial_hash_ok.json",       True,  False, False, PICErrorCode.VERIFIER_FAILED),
-    ("financial_hash_ok.json",       True,  True,  True,  None),                          # canary (strict mode)
-
+    ("financial_hash_ok.json", False, False, False, PICErrorCode.VERIFIER_FAILED),
+    ("financial_hash_ok.json", False, True, True, None),  # canary
+    ("financial_hash_ok.json", True, False, False, PICErrorCode.VERIFIER_FAILED),
+    ("financial_hash_ok.json", True, True, True, None),  # canary (strict mode)
     # High-impact (money). Has cfo_signed_invoice_hash:trusted as load-bearing
     # entry. Non-strict: contract satisfied. Strict: all flattened to untrusted,
     # contract fails.
-    ("financial_irreversible.json",  False, False, True,  None),
-    ("financial_irreversible.json",  False, True,  True,  None),
-    ("financial_irreversible.json",  True,  False, False, PICErrorCode.VERIFIER_FAILED),
-    ("financial_irreversible.json",  True,  True,  False, PICErrorCode.VERIFIER_FAILED),
-
+    ("financial_irreversible.json", False, False, True, None),
+    ("financial_irreversible.json", False, True, True, None),
+    ("financial_irreversible.json", True, False, False, PICErrorCode.VERIFIER_FAILED),
+    ("financial_irreversible.json", True, True, False, PICErrorCode.VERIFIER_FAILED),
     # High-impact (privacy) with user_email_consent:trusted.
-    ("privacy_risk.json",            False, False, True,  None),
-    ("privacy_risk.json",            False, True,  True,  None),
-    ("privacy_risk.json",            True,  False, False, PICErrorCode.VERIFIER_FAILED),
-    ("privacy_risk.json",            True,  True,  False, PICErrorCode.VERIFIER_FAILED),
-
+    ("privacy_risk.json", False, False, True, None),
+    ("privacy_risk.json", False, True, True, None),
+    ("privacy_risk.json", True, False, False, PICErrorCode.VERIFIER_FAILED),
+    ("privacy_risk.json", True, True, False, PICErrorCode.VERIFIER_FAILED),
     # High-impact (irreversible) with lidar_safety_trigger:trusted as load-bearing.
-    ("robotic_action.json",          False, False, True,  None),
-    ("robotic_action.json",          False, True,  True,  None),
-    ("robotic_action.json",          True,  False, False, PICErrorCode.VERIFIER_FAILED),
-    ("robotic_action.json",          True,  True,  False, PICErrorCode.VERIFIER_FAILED),
+    ("robotic_action.json", False, False, True, None),
+    ("robotic_action.json", False, True, True, None),
+    ("robotic_action.json", True, False, False, PICErrorCode.VERIFIER_FAILED),
+    ("robotic_action.json", True, True, False, PICErrorCode.VERIFIER_FAILED),
 ]
 
 
@@ -416,6 +425,7 @@ def test_verdict_regression_matrix(
 # v0.8.1: Public API surface — package-root re-export pin
 # ============================================================================
 
+
 class TestPublicAPISurface:
     """Pins v0.8.1's package-root re-export of both deprecation warning classes.
 
@@ -426,7 +436,10 @@ class TestPublicAPISurface:
     def test_deprecation_warnings_importable_at_package_root(self) -> None:
         from pic_standard import (
             PICSemiTrustedDeprecationWarning as PicSemi,
+        )
+        from pic_standard import (
             PICTrustFutureWarning as PicTrust,
         )
+
         assert issubclass(PicSemi, FutureWarning)
         assert issubclass(PicTrust, FutureWarning)

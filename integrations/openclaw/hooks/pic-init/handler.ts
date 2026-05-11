@@ -50,7 +50,9 @@ function resolveConfig(pluginConfig: Record<string, unknown>): PICPluginConfig {
                 ? pluginConfig.bridge_timeout_ms
                 : DEFAULT_CONFIG.bridge_timeout_ms,
         log_level:
-            pluginConfig.log_level === "debug" || pluginConfig.log_level === "info" || pluginConfig.log_level === "warn"
+            pluginConfig.log_level === "debug" ||
+            pluginConfig.log_level === "info" ||
+            pluginConfig.log_level === "warn"
                 ? pluginConfig.log_level
                 : DEFAULT_CONFIG.log_level,
     };
@@ -60,11 +62,14 @@ function resolveConfig(pluginConfig: Record<string, unknown>): PICPluginConfig {
  * Factory: creates the before_agent_start handler with captured plugin config.
  */
 export function createPicInitHandler(
-    pluginConfig: Record<string, unknown>,
-): (event: { prompt: string; messages?: unknown[] }, ctx: Record<string, unknown>) => Promise<{ prependContext?: string }> {
+    pluginConfig: Record<string, unknown>
+): (
+    event: { prompt: string; messages?: unknown[] },
+    ctx: Record<string, unknown>
+) => Promise<{ prependContext?: string }> {
     return async function handler(
         _event: { prompt: string; messages?: unknown[] },
-        _ctx: Record<string, unknown>,
+        _ctx: Record<string, unknown>
     ): Promise<{ prependContext?: string }> {
         const config = resolveConfig(pluginConfig);
 
@@ -89,7 +94,7 @@ export function createPicInitHandler(
         } catch {
             console.warn(
                 `[pic-init] PIC bridge unreachable at ${config.bridge_url} — ` +
-                "tool calls will be blocked (fail-closed) until the bridge is started.",
+                    "tool calls will be blocked (fail-closed) until the bridge is started."
             );
         } finally {
             clearTimeout(timeout);

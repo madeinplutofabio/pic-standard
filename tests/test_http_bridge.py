@@ -4,19 +4,17 @@ from __future__ import annotations
 
 import json
 import threading
-import urllib.request
 import urllib.error
+import urllib.request
 from pathlib import Path
 
 import pytest
-
-from pic_standard.policy import PICPolicy
 from pic_standard.integrations.http_bridge import (
-    handle_verify,
     PICBridgeServer,
     PICEvaluateLimits,
+    handle_verify,
 )
-
+from pic_standard.policy import PICPolicy
 
 # ------------------------------------------------------------------
 # Helpers (same pattern as test_mcp_guard_unit.py)
@@ -49,7 +47,7 @@ def _verify(tool_name: str, tool_args: dict, policy: PICPolicy = POLICY) -> dict
 
 
 # ------------------------------------------------------------------
-# Unit tests (call handle_verify directly – no HTTP)
+# Unit tests (call handle_verify directly - no HTTP)
 # ------------------------------------------------------------------
 
 
@@ -143,7 +141,11 @@ def test_bridge_audit_shape_allow(caplog):
     )
     assert result["allowed"] is True
 
-    record = next(r for r in caplog.records if r.name == "pic_standard.audit" and "req-audit-allow" in r.message)
+    record = next(
+        r
+        for r in caplog.records
+        if r.name == "pic_standard.audit" and "req-audit-allow" in r.message
+    )
     payload = json.loads(record.message)
     assert payload["event"] == "verification_allowed"
     assert payload["request_id"] == "req-audit-allow"
@@ -158,7 +160,10 @@ def test_bridge_audit_shape_block(caplog):
     caplog.set_level("INFO", logger="pic_standard.audit")
 
     result = handle_verify(
-        {"tool_name": "payments_send", "tool_args": {"amount": 500, "__pic": _proposal("untrusted")}},
+        {
+            "tool_name": "payments_send",
+            "tool_args": {"amount": 500, "__pic": _proposal("untrusted")},
+        },
         policy=POLICY,
         limits=PICEvaluateLimits(),
         verify_evidence=False,
@@ -168,7 +173,11 @@ def test_bridge_audit_shape_block(caplog):
     )
     assert result["allowed"] is False
 
-    record = next(r for r in caplog.records if r.name == "pic_standard.audit" and "req-audit-block" in r.message)
+    record = next(
+        r
+        for r in caplog.records
+        if r.name == "pic_standard.audit" and "req-audit-block" in r.message
+    )
     payload = json.loads(record.message)
     assert payload["event"] == "verification_blocked"
     assert payload["request_id"] == "req-audit-block"
@@ -286,7 +295,7 @@ def test_bridge_request_id_generated_if_not_provided(bridge_url):
 def test_bridge_request_id_echoed_if_provided(bridge_url):
     """If X-Request-ID header provided, server echoes it back."""
     import urllib.request
-    
+
     custom_request_id = "my-custom-request-12345"
     req = urllib.request.Request(
         f"{bridge_url}/health",
@@ -314,7 +323,10 @@ def test_bridge_request_id_in_error_response(bridge_url):
     """Error responses also include request_id."""
     result = _http_post(
         f"{bridge_url}/verify",
-        {"tool_name": "payments_send", "tool_args": {"amount": 500, "__pic": _proposal("untrusted")}},
+        {
+            "tool_name": "payments_send",
+            "tool_args": {"amount": 500, "__pic": _proposal("untrusted")},
+        },
     )
     assert result["allowed"] is False
     assert "request_id" in result
@@ -324,7 +336,10 @@ def test_bridge_request_id_in_error_response(bridge_url):
 def test_bridge_http_blocks_untrusted(bridge_url):
     result = _http_post(
         f"{bridge_url}/verify",
-        {"tool_name": "payments_send", "tool_args": {"amount": 500, "__pic": _proposal("untrusted")}},
+        {
+            "tool_name": "payments_send",
+            "tool_args": {"amount": 500, "__pic": _proposal("untrusted")},
+        },
     )
     assert result["allowed"] is False
     assert result["error"]["code"].startswith("PIC_")
@@ -377,6 +392,7 @@ def test_bridge_http_method_not_allowed(bridge_url):
 # Content-Length and Body Size Validation
 # ------------------------------------------------------------------
 
+
 def _send_raw_http(bridge_url: str, headers: bytes, body: bytes = b"") -> str:
     """Send a raw HTTP request and return the response as a string.
 
@@ -408,10 +424,7 @@ def test_bridge_http_missing_content_length(bridge_url):
     """Missing Content-Length header returns 400 with specific error message."""
     response = _send_raw_http(
         bridge_url,
-        b"POST /verify HTTP/1.1\r\n"
-        b"Host: localhost\r\n"
-        b"Content-Type: application/json\r\n"
-        b"\r\n",
+        b"POST /verify HTTP/1.1\r\nHost: localhost\r\nContent-Type: application/json\r\n\r\n",
     )
     assert "400" in response
     assert "Missing Content-Length" in response
@@ -453,6 +466,7 @@ def test_bridge_http_oversized_body(bridge_url):
     assert "too large" in response
     assert str(MAX_REQUEST_BYTES) in response
 
+
 def test_bridge_http_negative_content_length(bridge_url):
     """Negative Content-Length header returns 400."""
     response = _send_raw_http(
@@ -484,11 +498,11 @@ def test_bridge_http_malformed_content_length(bridge_url):
 def test_bridge_http_non_dict_json_body(bridge_url):
     """JSON body that is not an object (array, string, number) returns 400."""
     test_cases = [
-        (b'[1, 2, 3]', "list"),
+        (b"[1, 2, 3]", "list"),
         (b'"hello"', "str"),
-        (b'123', "int"),
-        (b'true', "bool"),
-        (b'null', "NoneType"),
+        (b"123", "int"),
+        (b"true", "bool"),
+        (b"null", "NoneType"),
     ]
     for body, expected_type in test_cases:
         req = urllib.request.Request(

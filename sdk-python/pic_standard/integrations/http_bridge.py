@@ -1,5 +1,5 @@
 """
-PIC HTTP Bridge – lightweight verification server for non-Python integrations.
+PIC HTTP Bridge - lightweight verification server for non-Python integrations.
 
 Wraps ``evaluate_pic_for_tool_call()`` from the MCP guard module and exposes
 it over HTTP so that TypeScript / Go / etc. consumers can verify PIC proposals
@@ -11,18 +11,20 @@ POST /verify
     Body: {"tool_name": "<name>", "tool_args": {"__pic": {…}, …}}
     Headers: X-Request-ID (optional)
     200:  {"allowed": true,  "error": null,          "eval_ms": <int>, "request_id": "<UUID>"}
-    200:  {"allowed": false, "error": {"code": "…", "message": "…"}, "eval_ms": <int>, "request_id": "<UUID>"}
+    200:  {"allowed": false, "error": {"code": "…", "message": "…"},
+           "eval_ms": <int>, "request_id": "<UUID>"}
 
 GET  /health
     200:  {"status": "ok", "request_id": "<UUID>"}
 
 GET  /v1/version
-    200:  {"pic_version": "1.0", "package_version": "0.8.1", "commit": "<hash>", "policy_version": "1.0", "request_id": "<UUID>"}
+    200:  {"pic_version": "1.0", "package_version": "0.8.1",
+           "commit": "<hash>", "policy_version": "1.0", "request_id": "<UUID>"}
 
 Design notes
 ------------
-* stdlib only – no Flask / FastAPI dependency.
-* Fail-closed – any internal error returns ``allowed: false``.
+* stdlib only - no Flask / FastAPI dependency.
+* Fail-closed - any internal error returns ``allowed: false``.
 * Binds to 127.0.0.1 by default (localhost-only for security).
 * Reuses the battle-tested ``evaluate_pic_for_tool_call`` pipeline
   (limits → schema → verifier → tool-binding → evidence → time-budget).
@@ -42,8 +44,8 @@ import time
 import uuid
 from datetime import datetime, timezone
 from functools import lru_cache
+from http.server import BaseHTTPRequestHandler, HTTPServer
 from importlib import metadata
-from http.server import HTTPServer, BaseHTTPRequestHandler
 from pathlib import Path
 from typing import Any, Dict, Optional
 
@@ -75,6 +77,7 @@ REQUEST_ID_RE = re.compile(r"^[A-Za-z0-9._:-]+$")
 # ------------------------------------------------------------------
 # Request / response helpers
 # ------------------------------------------------------------------
+
 
 @lru_cache(maxsize=1)
 def _get_git_commit() -> str:
@@ -152,7 +155,7 @@ def _read_json_body(handler: BaseHTTPRequestHandler) -> Dict[str, Any]:
         length = int(length_str)
     except ValueError:
         log.warning("Malformed Content-Length header: %r", length_str)
-        raise ValueError(f"Invalid Content-Length header: '{length_str}'")
+        raise ValueError(f"Invalid Content-Length header: '{length_str}'") from None
 
     if length < 0:
         log.warning("Negative Content-Length received: %d", length)
@@ -185,6 +188,7 @@ def _read_json_body(handler: BaseHTTPRequestHandler) -> Dict[str, Any]:
 # ------------------------------------------------------------------
 # Core verification (thin wrapper around evaluate_pic_for_tool_call)
 # ------------------------------------------------------------------
+
 
 def _log_audit(
     request_id: str,
@@ -224,7 +228,7 @@ def handle_verify(
     """
     Run PIC verification and return a structured response dict.
 
-    Always returns – never raises.
+    Always returns - never raises.
     """
     if request_id is None:
         request_id = _generate_request_id()
@@ -334,7 +338,10 @@ def handle_verify(
         )
         result = {
             "allowed": False,
-            "error": {"code": PICErrorCode.INTERNAL_ERROR.value, "message": "Internal verification error"},
+            "error": {
+                "code": PICErrorCode.INTERNAL_ERROR.value,
+                "message": "Internal verification error",
+            },
             "eval_ms": eval_ms,
             "request_id": request_id,
         }
@@ -373,7 +380,9 @@ class PICBridgeHandler(BaseHTTPRequestHandler):
         request_id = self._get_or_create_request_id()
 
         if self.path.rstrip("/") == "/health":
-            _json_response(self, 200, {"status": "ok", "request_id": request_id}, request_id=request_id)
+            _json_response(
+                self, 200, {"status": "ok", "request_id": request_id}, request_id=request_id
+            )
             return
         if self.path.rstrip("/") == "/v1/version":
             _json_response(
@@ -389,13 +398,17 @@ class PICBridgeHandler(BaseHTTPRequestHandler):
                 request_id=request_id,
             )
             return
-        _json_response(self, 404, {"error": "Not found", "request_id": request_id}, request_id=request_id)
+        _json_response(
+            self, 404, {"error": "Not found", "request_id": request_id}, request_id=request_id
+        )
 
     def do_POST(self) -> None:
         request_id = self._get_or_create_request_id()
 
         if self.path.rstrip("/") != "/verify":
-            _json_response(self, 404, {"error": "Not found", "request_id": request_id}, request_id=request_id)
+            _json_response(
+                self, 404, {"error": "Not found", "request_id": request_id}, request_id=request_id
+            )
             return
 
         try:
@@ -430,7 +443,10 @@ class PICBridgeHandler(BaseHTTPRequestHandler):
                 400,
                 {
                     "allowed": False,
-                    "error": {"code": PICErrorCode.INVALID_REQUEST.value, "message": "Malformed or non-JSON body"},
+                    "error": {
+                        "code": PICErrorCode.INVALID_REQUEST.value,
+                        "message": "Malformed or non-JSON body",
+                    },
                     "eval_ms": 0,
                     "request_id": request_id,
                 },
@@ -461,20 +477,36 @@ class PICBridgeHandler(BaseHTTPRequestHandler):
 
     def do_PUT(self) -> None:
         request_id = self._get_or_create_request_id()
-        _json_response(self, 405, {"error": "Method not allowed", "request_id": request_id}, request_id=request_id)
+        _json_response(
+            self,
+            405,
+            {"error": "Method not allowed", "request_id": request_id},
+            request_id=request_id,
+        )
 
     def do_DELETE(self) -> None:
         request_id = self._get_or_create_request_id()
-        _json_response(self, 405, {"error": "Method not allowed", "request_id": request_id}, request_id=request_id)
+        _json_response(
+            self,
+            405,
+            {"error": "Method not allowed", "request_id": request_id},
+            request_id=request_id,
+        )
 
     def do_PATCH(self) -> None:
         request_id = self._get_or_create_request_id()
-        _json_response(self, 405, {"error": "Method not allowed", "request_id": request_id}, request_id=request_id)
+        _json_response(
+            self,
+            405,
+            {"error": "Method not allowed", "request_id": request_id},
+            request_id=request_id,
+        )
 
 
 # ------------------------------------------------------------------
 # Server with config
 # ------------------------------------------------------------------
+
 
 class PICBridgeServer(HTTPServer):
     """HTTPServer subclass that holds PIC configuration."""
@@ -500,6 +532,7 @@ class PICBridgeServer(HTTPServer):
 # ------------------------------------------------------------------
 # Public entry point
 # ------------------------------------------------------------------
+
 
 def start_bridge(
     *,

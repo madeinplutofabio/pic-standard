@@ -15,34 +15,36 @@ PIC proposal against the PIC HTTP bridge before execution.
 ## Behavior
 
 |
- Condition
+Condition
 |
- Result
-|
-|
------------
-|
---------
+Result
 |
 |
- Bridge returns
+
+---
+
+## |
+
+|
+|
+Bridge returns
 `allowed: true`
 |
- Tool executes;
+Tool executes;
 `__pic`
- stripped from params
+stripped from params
 |
 |
- Bridge returns
+Bridge returns
 `allowed: false`
 |
- Tool blocked with
+Tool blocked with
 `blockReason`
 |
 |
- Bridge unreachable / timeout
+Bridge unreachable / timeout
 |
- Tool blocked (fail-closed)
+Tool blocked (fail-closed)
 |
 
 ## Requirements

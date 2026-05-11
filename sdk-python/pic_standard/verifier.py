@@ -6,10 +6,10 @@ from typing import Any, Dict, List, Optional, Set
 
 from pydantic import BaseModel, field_validator, model_validator
 
-
 # ------------------------------------------------------------------
 # v0.8.1: semi_trusted deprecation warning
 # ------------------------------------------------------------------
+
 
 class PICSemiTrustedDeprecationWarning(FutureWarning):
     """Emitted when a Provenance entry is constructed with trust='semi_trusted'.
@@ -24,6 +24,7 @@ class PICSemiTrustedDeprecationWarning(FutureWarning):
     evidence; verifiers derive effective trust from successful evidence
     verification per the trust axiom (v0.7.5).
     """
+
     pass
 
 
@@ -103,8 +104,7 @@ class ActionProposal(BaseModel):
             trusted_ids = {p.id for p in self.provenance if p.trust == TrustLevel.TRUSTED}
 
             has_trusted_evidence = any(
-                any(ev_id in trusted_ids for ev_id in claim.evidence)
-                for claim in self.claims
+                any(ev_id in trusted_ids for ev_id in claim.evidence) for claim in self.claims
             )
 
             if not has_trusted_evidence:

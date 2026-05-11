@@ -1,6 +1,7 @@
 import pytest
 from pic_standard import ActionProposal
 
+
 def test_money_requires_trusted_evidence_blocks_without_trusted():
     proposal = {
         "protocol": "PIC/1.0",
@@ -13,6 +14,7 @@ def test_money_requires_trusted_evidence_blocks_without_trusted():
     with pytest.raises(ValueError):
         ActionProposal(**proposal)
 
+
 def test_money_passes_with_trusted_evidence():
     proposal = {
         "protocol": "PIC/1.0",
@@ -23,6 +25,7 @@ def test_money_passes_with_trusted_evidence():
         "action": {"tool": "payments.send", "args": {"amount": 500}},
     }
     ActionProposal(**proposal)
+
 
 def test_irreversible_requires_trusted_evidence_blocks_without_trusted():
     proposal = {
@@ -35,6 +38,7 @@ def test_irreversible_requires_trusted_evidence_blocks_without_trusted():
     }
     with pytest.raises(ValueError):
         ActionProposal(**proposal)
+
 
 def test_irreversible_passes_with_trusted_evidence():
     proposal = {

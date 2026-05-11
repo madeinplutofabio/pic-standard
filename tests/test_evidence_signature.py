@@ -5,11 +5,10 @@ import json
 from pathlib import Path
 
 import pytest
-
 from pic_standard.evidence import EvidenceSystem
 
-
 # --- helpers (tests-only) ---
+
 
 def _b64(b: bytes) -> str:
     return base64.b64encode(b).decode("ascii")
@@ -21,10 +20,10 @@ def _make_keypair():
     These tests require 'cryptography' to be installed (your [crypto] extra).
     """
     try:
-        from cryptography.hazmat.primitives.asymmetric import ed25519
         from cryptography.hazmat.primitives import serialization
-    except Exception as e:  # pragma: no cover
-        pytest.skip("cryptography not installed; install via `pip install 'pic-standard[crypto]'`")  # noqa: B904
+        from cryptography.hazmat.primitives.asymmetric import ed25519
+    except Exception:  # pragma: no cover
+        pytest.skip("cryptography not installed; install via `pip install 'pic-standard[crypto]'`")
 
     priv = ed25519.Ed25519PrivateKey.generate()
     pub = priv.public_key()
@@ -61,6 +60,7 @@ def _proposal_with_sig(*, payload: str, signature_b64: str, key_id: str) -> dict
 
 
 # --- tests ---
+
 
 def test_sig_evidence_verifies_ok(monkeypatch, tmp_path: Path):
     priv, pub_raw = _make_keypair()

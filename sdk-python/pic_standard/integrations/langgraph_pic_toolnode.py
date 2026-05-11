@@ -44,11 +44,15 @@ class PICToolNode:
     def invoke(self, state: Dict[str, Any]) -> Dict[str, Any]:
         messages = state.get("messages", [])
         if not messages:
-            raise ValueError("PICToolNode expects state['messages'] to contain at least one message.")
+            raise ValueError(
+                "PICToolNode expects state['messages'] to contain at least one message."
+            )
 
         last = messages[-1]
         if not isinstance(last, AIMessage):
-            raise ValueError("PICToolNode expects the last message to be an AIMessage with tool_calls.")
+            raise ValueError(
+                "PICToolNode expects the last message to be an AIMessage with tool_calls."
+            )
 
         tool_calls = getattr(last, "tool_calls", None) or []
         if not tool_calls:
@@ -63,20 +67,24 @@ class PICToolNode:
 
             tool = self._tools_by_name.get(name)
             if tool is None:
-                raise ValueError(f"Unknown tool '{name}'. Available: {list(self._tools_by_name.keys())}")
+                raise ValueError(
+                    f"Unknown tool '{name}'. Available: {list(self._tools_by_name.keys())}"
+                )
 
             args = dict(tc.get("args") or {})
 
             if PIC_ARG_KEY not in args:
                 raise ValueError(
-                    f"PIC missing: tool call '{name}' must include args['{PIC_ARG_KEY}'] with the PIC proposal."
+                    f"PIC missing: tool call '{name}' must include "
+                    f"args['{PIC_ARG_KEY}'] with the PIC proposal."
                 )
 
             proposal = args.pop(PIC_ARG_KEY)
 
             if not isinstance(proposal, dict):
                 raise ValueError(
-                    f"PIC invalid: args['{PIC_ARG_KEY}'] must be a dict (parsed JSON), got {type(proposal)}."
+                    f"PIC invalid: args['{PIC_ARG_KEY}'] must be a dict "
+                    f"(parsed JSON), got {type(proposal)}."
                 )
 
             # Enforce PIC BEFORE calling the tool (delegates to shared pipeline)

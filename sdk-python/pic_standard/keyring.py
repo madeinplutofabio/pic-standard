@@ -9,7 +9,6 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Dict, Literal, Optional, Protocol, Set, runtime_checkable
 
-
 _HEX_RE = re.compile(r"^[0-9a-fA-F]+$")
 
 
@@ -89,10 +88,7 @@ def _parse_expires_at(value: str) -> datetime:
         raise KeyRingError("expires_at must be a non-empty string")
 
     # Handle trailing Z
-    if v.endswith("Z") or v.endswith("z"):
-        v2 = v[:-1] + "+00:00"
-    else:
-        v2 = v
+    v2 = v[:-1] + "+00:00" if v.endswith(("Z", "z")) else v
 
     try:
         dt = datetime.fromisoformat(v2)
@@ -114,6 +110,7 @@ class TrustedKey:
     public_key: raw Ed25519 public key bytes (32 bytes).
     expires_at: optional UTC datetime at which this key stops being trusted.
     """
+
     public_key: bytes
     expires_at: Optional[datetime] = None
 
@@ -124,6 +121,7 @@ KeyStatus = Literal["ok", "missing", "revoked", "expired"]
 @runtime_checkable
 class KeyResolver(Protocol):
     """Sync-only protocol for resolving trust keys."""
+
     def get_key(self, key_id: str) -> Optional[bytes]: ...
     def key_status(self, key_id: str) -> KeyStatus: ...
 
@@ -136,6 +134,7 @@ class TrustedKeyRing:
     - keys maps key_id -> TrustedKey(public_key, expires_at)
     - revoked_keys contains key_ids that must be treated as untrusted
     """
+
     keys: Dict[str, TrustedKey]
     revoked_keys: Set[str]
 
@@ -274,9 +273,7 @@ class TrustedKeyRing:
                 out[kid] = TrustedKey(public_key=raw, expires_at=expires_at)
                 continue
 
-            raise KeyRingError(
-                f"Invalid trusted_keys entry for '{kid}': expected string or object"
-            )
+            raise KeyRingError(f"Invalid trusted_keys entry for '{kid}': expected string or object")
 
         return out
 
@@ -327,7 +324,7 @@ class TrustedKeyRing:
         }
 
         # If they used minimal, values must be strings
-        for k, v in filtered.items():
+        for _k, v in filtered.items():
             if not isinstance(v, str):
                 raise KeyRingError(
                     "Legacy keyring format expects a mapping of key_id -> key_string"

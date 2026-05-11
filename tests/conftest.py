@@ -8,7 +8,9 @@ _sdk_path = str(Path(__file__).resolve().parent.parent / "sdk-python")
 if _sdk_path not in sys.path:
     sys.path.insert(0, _sdk_path)
 
-import pytest
+# E402: pytest import deliberately follows the sys.path setup above so the
+# in-tree pic_standard package resolves without `pip install -e .`.
+import pytest  # noqa: E402
 
 
 def make_proposal(
@@ -55,6 +57,7 @@ def make_proposal(
 # ---------------------------------------------------------------------------
 # Reusable pytest fixtures (built on make_proposal)
 # ---------------------------------------------------------------------------
+
 
 @pytest.fixture
 def money_proposal() -> dict:

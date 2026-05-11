@@ -4,10 +4,9 @@ from __future__ import annotations
 
 import copy
 
+from conftest import make_proposal
 from pic_standard.errors import PICErrorCode
 from pic_standard.pipeline import PipelineOptions, verify_proposal
-
-from conftest import make_proposal
 
 
 class TestStrictTrust:
@@ -17,7 +16,8 @@ class TestStrictTrust:
         """High-impact + strict_trust=True + no evidence → blocked."""
         proposal = make_proposal(trust="trusted", impact="money")
         result = verify_proposal(
-            proposal, options=PipelineOptions(strict_trust=True),
+            proposal,
+            options=PipelineOptions(strict_trust=True),
         )
         assert not result.ok
         assert result.error is not None
@@ -33,7 +33,6 @@ class TestStrictTrust:
 
         from cryptography.hazmat.primitives import serialization
         from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey
-
         from pic_standard.keyring import StaticKeyRingResolver, TrustedKey, TrustedKeyRing
 
         # Generate a test keypair
@@ -59,15 +58,17 @@ class TestStrictTrust:
             trust="trusted",
             impact="money",
             prov_id="invoice_evidence",
-            extra_evidence=[{
-                "id": "invoice_evidence",
-                "type": "sig",
-                "ref": "inline:payment",
-                "payload": payload,
-                "alg": "ed25519",
-                "signature": sig_b64,
-                "key_id": "test-key",
-            }],
+            extra_evidence=[
+                {
+                    "id": "invoice_evidence",
+                    "type": "sig",
+                    "ref": "inline:payment",
+                    "payload": payload,
+                    "alg": "ed25519",
+                    "signature": sig_b64,
+                    "key_id": "test-key",
+                }
+            ],
         )
 
         result = verify_proposal(
@@ -83,22 +84,28 @@ class TestStrictTrust:
     def test_strict_trust_low_impact_passes(self) -> None:
         """Low-impact (read) + strict_trust=True → allowed (no trusted provenance required)."""
         proposal = make_proposal(
-            tool="docs_search", impact="read", intent="Search docs",
+            tool="docs_search",
+            impact="read",
+            intent="Search docs",
             trust="trusted",
         )
         result = verify_proposal(
-            proposal, options=PipelineOptions(strict_trust=True),
+            proposal,
+            options=PipelineOptions(strict_trust=True),
         )
         assert result.ok
 
     def test_strict_trust_untrusted_input_unchanged(self) -> None:
         """Already untrusted + strict_trust=True → no-op, still allowed for low-impact."""
         proposal = make_proposal(
-            tool="docs_search", impact="read", intent="Search docs",
+            tool="docs_search",
+            impact="read",
+            intent="Search docs",
             trust="untrusted",
         )
         result = verify_proposal(
-            proposal, options=PipelineOptions(strict_trust=True),
+            proposal,
+            options=PipelineOptions(strict_trust=True),
         )
         assert result.ok
 
@@ -106,7 +113,8 @@ class TestStrictTrust:
         """strict_trust=False (default) → legacy behavior: self-asserted trust accepted."""
         proposal = make_proposal(trust="trusted", impact="money")
         result = verify_proposal(
-            proposal, options=PipelineOptions(strict_trust=False),
+            proposal,
+            options=PipelineOptions(strict_trust=False),
         )
         assert result.ok
 
@@ -128,6 +136,7 @@ class TestStrictTrust:
         proposal = make_proposal(trust="trusted", impact="money")
         original = copy.deepcopy(proposal)
         verify_proposal(
-            proposal, options=PipelineOptions(strict_trust=True),
+            proposal,
+            options=PipelineOptions(strict_trust=True),
         )
         assert proposal == original

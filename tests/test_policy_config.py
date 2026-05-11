@@ -3,7 +3,7 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
-from pic_standard.config import load_policy, dump_policy
+from pic_standard.config import dump_policy, load_policy
 
 
 def test_load_policy_from_repo_root(tmp_path: Path):

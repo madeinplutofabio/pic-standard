@@ -1,0 +1,8 @@
+# Build output — Prettier should not reformat generated JS.
+dist/
+
+# Vendored deps — never reformat node_modules.
+node_modules/
+
+# Auto-generated lockfile — npm owns its formatting.
+package-lock.json

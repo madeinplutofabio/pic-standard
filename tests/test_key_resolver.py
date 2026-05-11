@@ -1,4 +1,5 @@
 """Tests for v0.7 Key Resolution Architecture."""
+
 from __future__ import annotations
 
 import base64
@@ -8,16 +9,15 @@ from pathlib import Path
 from typing import Any, Dict
 
 import pytest
-
+from pic_standard.evidence import EvidenceSystem
 from pic_standard.keyring import (
     KeyResolver,
     StaticKeyRingResolver,
     TrustedKeyRing,
 )
-from pic_standard.evidence import EvidenceSystem
-
 
 # --- helpers ---
+
 
 def _b64(b: bytes) -> str:
     return base64.b64encode(b).decode("ascii")
@@ -25,8 +25,8 @@ def _b64(b: bytes) -> str:
 
 def _make_keypair():
     try:
-        from cryptography.hazmat.primitives.asymmetric import ed25519
         from cryptography.hazmat.primitives import serialization
+        from cryptography.hazmat.primitives.asymmetric import ed25519
     except Exception:
         pytest.skip("cryptography not installed")
 
@@ -85,6 +85,7 @@ def _proposal_with_hash(*, sha256: str, ref: str) -> dict:
 
 # --- StaticKeyRingResolver unit tests ---
 
+
 def test_static_resolver_get_key_ok():
     _, pub_raw = _make_keypair()
     kr = TrustedKeyRing.from_dict({"trusted_keys": {"k1": _b64(pub_raw)}})
@@ -95,16 +96,18 @@ def test_static_resolver_get_key_ok():
 
 
 def test_static_resolver_key_status_variants():
-    kr = TrustedKeyRing.from_dict({
-        "trusted_keys": {
-            "active": _b64(b"\x00" * 32),
-            "expired": {
-                "public_key": _b64(b"\x01" * 32),
-                "expires_at": "2020-01-01T00:00:00Z",
+    kr = TrustedKeyRing.from_dict(
+        {
+            "trusted_keys": {
+                "active": _b64(b"\x00" * 32),
+                "expired": {
+                    "public_key": _b64(b"\x01" * 32),
+                    "expires_at": "2020-01-01T00:00:00Z",
+                },
             },
-        },
-        "revoked_keys": ["revoked_key"],
-    })
+            "revoked_keys": ["revoked_key"],
+        }
+    )
     resolver = StaticKeyRingResolver(kr)
 
     assert resolver.key_status("active") == "ok"
@@ -120,6 +123,7 @@ def test_static_resolver_satisfies_protocol():
 
 
 # --- EvidenceSystem injection tests ---
+
 
 def test_evidence_system_with_injected_resolver(tmp_path: Path):
     """Custom resolver works without PIC_KEYS_PATH — proves resolver injection."""
@@ -168,6 +172,7 @@ def test_evidence_system_default_resolver(monkeypatch, tmp_path: Path):
 
 # --- Pipeline threading test ---
 
+
 def test_pipeline_threads_resolver(monkeypatch):
     """PipelineOptions.key_resolver reaches EvidenceSystem constructor."""
     from pic_standard.pipeline import PipelineOptions, verify_proposal
@@ -180,6 +185,7 @@ def test_pipeline_threads_resolver(monkeypatch):
 
         def verify_all(self, proposal, *, base_dir, evidence_root_dir=None):
             from pic_standard.evidence import EvidenceReport
+
             return EvidenceReport(ok=True, results=[], verified_ids=set())
 
     monkeypatch.setattr("pic_standard.pipeline.EvidenceSystem", StubEvidenceSystem)
@@ -219,8 +225,10 @@ def test_pipeline_threads_resolver(monkeypatch):
 
 # --- Lazy default semantics test ---
 
+
 def test_hash_only_does_not_load_keyring(monkeypatch, tmp_path: Path):
     """Hash-only evidence must NOT trigger keyring loading. Sig evidence must."""
+
     # Poison load_default — any call will raise this distinctive error
     def _boom():
         raise RuntimeError("should not be called")
@@ -244,7 +252,9 @@ def test_hash_only_does_not_load_keyring(monkeypatch, tmp_path: Path):
 
     # Sig evidence: should fail because lazy resolver calls load_default → RuntimeError
     sig_proposal = _proposal_with_sig(
-        payload="test", signature_b64=_b64(b"\x00" * 64), key_id="any_key",
+        payload="test",
+        signature_b64=_b64(b"\x00" * 64),
+        key_id="any_key",
     )
 
     es2 = EvidenceSystem()
