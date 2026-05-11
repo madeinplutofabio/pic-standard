@@ -48,6 +48,22 @@ jobs:
           # tag's signature payload.
           fetch-depth: 0
 
+      - name: Refresh annotated tag object
+        env:
+          TAG: ${{ github.ref_name }}
+        run: |
+          # actions/checkout with a tag ref creates a LIGHTWEIGHT tag
+          # locally (pointer-to-commit); the annotated tag OBJECT with
+          # the signature payload and the tag body is not preserved,
+          # even with fetch-depth: 0. Re-fetch with --force to overwrite
+          # the lightweight ref with the actual annotated tag object.
+          # Without this, `git tag -v` fails with "cannot verify a
+          # non-tag object of type commit" and `%(subject)/%(contents:body)`
+          # return empty.
+          git fetch origin "refs/tags/${TAG}:refs/tags/${TAG}" --force
+          # Sanity-check: confirm the local ref is now an annotated tag.
+          git cat-file -t "${TAG}"   # prints "tag" (not "commit")
+
       - name: Verify tag signature against trusted public key
         env:
           TAG: ${{ github.ref_name }}
@@ -119,6 +135,16 @@ jobs:
         with:
           # Needed for the annotated-tag-body extraction step below.
           fetch-depth: 0
+
+      - name: Refresh annotated tag object
+        env:
+          TAG: ${{ github.ref_name }}
+        run: |
+          # Same workaround as the verify-and-build job — actions/checkout
+          # creates a lightweight tag locally; refresh from origin so the
+          # annotated tag body is available to `git tag -l --format=...`.
+          git fetch origin "refs/tags/${TAG}:refs/tags/${TAG}" --force
+          git cat-file -t "${TAG}"   # prints "tag" (not "commit")
 
       - name: Download build artifacts
         uses: actions/download-artifact@v4
