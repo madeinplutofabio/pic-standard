@@ -123,7 +123,6 @@ describe("verifyToolCall", () => {
         expect(result.eval_ms).toBe(0); // "5" is not typeof number, so defaults to 0
     });
 
-
     it("fails closed when denial has unknown error code", async () => {
         const mockResponse = {
             ok: true,

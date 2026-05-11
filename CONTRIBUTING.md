@@ -12,7 +12,25 @@ If your domain (e.g., Healthcare, Legal) requires specific risk controls:
 ### 2. Requirements for Acceptable Contributions
 
 - All code must pass the existing test suite and conformance tests (`pytest` + `conformance.yml` workflow).
-- Python code should follow PEP 8 style.
+- **Style is enforced by automated tools — CI blocks merge on violations.**
+  - **Python** (Ruff): config in `pyproject.toml` (`[tool.ruff]`); rule set `E F W I N B SIM RUF`.
+    Run locally before pushing:
+
+    ```bash
+    ruff check sdk-python/ tests/ conformance/
+    ruff format --check sdk-python/ tests/ conformance/
+    ```
+
+  - **TypeScript** (ESLint v9 flat config + Prettier): config in `integrations/openclaw/{eslint.config.mjs, .prettierrc.json}`.
+    Run locally before pushing:
+
+    ```bash
+    cd integrations/openclaw
+    npm run lint
+    npm run format:check
+    ```
+
+- **Statement coverage ≥80% (Python).** CI runs `coverage report --fail-under=80`. If a change drops coverage below the threshold, add tests or refactor. Config: `pyproject.toml` (`[tool.coverage.run]` / `[tool.coverage.report]`).
 - Pull requests must include a clear description of the change and reference any related issue or discussion.
 - For SDK changes, all Pydantic models must validate successfully.
 

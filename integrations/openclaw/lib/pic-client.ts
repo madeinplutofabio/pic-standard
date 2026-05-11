@@ -6,7 +6,13 @@
  * returns { allowed: false } — never throws.
  */
 
-import type { PICErrorCode, PICError, PICVerifyResponse, PICVerifyRequest, PICPluginConfig } from "./types.js";
+import type {
+    PICErrorCode,
+    PICError,
+    PICVerifyResponse,
+    PICVerifyRequest,
+    PICPluginConfig,
+} from "./types.js";
 import { DEFAULT_CONFIG } from "./types.js";
 
 /** Valid PIC error codes for runtime validation. */
@@ -39,7 +45,7 @@ const VALID_ERROR_CODES: readonly PICErrorCode[] = [
 export async function verifyToolCall(
     toolName: string,
     toolArgs: Record<string, unknown>,
-    config: PICPluginConfig = DEFAULT_CONFIG,
+    config: PICPluginConfig = DEFAULT_CONFIG
 ): Promise<PICVerifyResponse> {
     const body: PICVerifyRequest = {
         tool_name: toolName,
@@ -99,17 +105,21 @@ export async function verifyToolCall(
         const picError: PICError = {
             code: error.code as PICErrorCode,
             message: typeof error.message === "string" ? error.message : "Unknown error",
-            details: typeof error.details === "object" ? (error.details as Record<string, unknown>) : undefined,
+            details:
+                typeof error.details === "object"
+                    ? (error.details as Record<string, unknown>)
+                    : undefined,
         };
 
         if (config.log_level === "debug") {
-            console.debug(`[pic-client] result: allowed=false eval_ms=${eval_ms} code=${picError.code}`);
+            console.debug(
+                `[pic-client] result: allowed=false eval_ms=${eval_ms} code=${picError.code}`
+            );
         }
 
         return { allowed: false, error: picError, eval_ms };
     } catch (err: unknown) {
-        const message =
-            err instanceof Error ? err.message : "Unknown bridge error";
+        const message = err instanceof Error ? err.message : "Unknown bridge error";
         return failClosed(message);
     } finally {
         clearTimeout(timeout);

@@ -43,6 +43,7 @@ log = logging.getLogger("pic_standard.pipeline")
 # v0.8: Trust deprecation warning
 # ------------------------------------------------------------------
 
+
 class PICTrustFutureWarning(FutureWarning):
     """Emitted when a proposal contains self-asserted trusted provenance and
     effective evidence verification will not run for that proposal.
@@ -50,6 +51,7 @@ class PICTrustFutureWarning(FutureWarning):
     In PIC/1.0, non-sanitizing mode (``strict_trust=False``) will be legacy
     and non-conformant.  This warning signals the migration path.
     """
+
     pass
 
 
@@ -57,14 +59,16 @@ class PICTrustFutureWarning(FutureWarning):
 # Shared helpers (moved from mcp_pic_guard.py — single copy)
 # ------------------------------------------------------------------
 
+
 @dataclass
 class PICEvaluateLimits:
     """Hard limits to avoid abuse / resource exhaustion."""
-    max_proposal_bytes: int = 64_000         # 64KB JSON
+
+    max_proposal_bytes: int = 64_000  # 64KB JSON
     max_provenance_items: int = 64
     max_claims: int = 64
     max_evidence_items: int = 64
-    max_eval_ms: int = 500                   # post-evaluation budget check (fail-closed), not a preemptive timeout
+    max_eval_ms: int = 500  # post-evaluation budget check (fail-closed), not a preemptive timeout
 
 
 @lru_cache(maxsize=1)
@@ -118,35 +122,43 @@ def _enforce_limits(proposal: Dict[str, Any], limits: PICEvaluateLimits) -> None
 # Pipeline input / output types
 # ------------------------------------------------------------------
 
+
 @dataclass
 class PipelineOptions:
     """Configuration for a single ``verify_proposal()`` call."""
-    tool_name: Optional[str] = None               # tool being invoked (used for binding + impact resolution)
-    expected_tool: Optional[str] = None            # tool binding enforcement (usually == tool_name)
+
+    tool_name: Optional[str] = None  # tool being invoked (used for binding + impact resolution)
+    expected_tool: Optional[str] = None  # tool binding enforcement (usually == tool_name)
     policy: Optional[PICPolicy] = None
-    limits: Optional[PICEvaluateLimits] = None     # None = skip limits
+    limits: Optional[PICEvaluateLimits] = None  # None = skip limits
     verify_evidence: bool = False
     proposal_base_dir: Optional[Path] = None
     evidence_root_dir: Optional[Path] = None
-    time_budget_ms: Optional[int] = None           # None = no budget; falls back to limits.max_eval_ms
-    key_resolver: Any = None                       # Optional[KeyResolver] — Any to avoid import issues when crypto missing
-    strict_trust: bool = False                     # v0.8: sanitize inbound trust to "untrusted"
+    time_budget_ms: Optional[int] = None  # None = no budget; falls back to limits.max_eval_ms
+    key_resolver: Any = (
+        None  # Optional[KeyResolver] — Any to avoid import issues when crypto missing
+    )
+    strict_trust: bool = False  # v0.8: sanitize inbound trust to "untrusted"
 
 
 @dataclass
 class PipelineResult:
     """Outcome of ``verify_proposal()``.  Never raises — all errors captured here."""
+
     ok: bool
     action_proposal: Optional[ActionProposal] = None
     error: Optional[PICError] = None
-    evidence_report: Any = None                    # Optional[EvidenceReport] — typed as Any to avoid import issues
-    impact: Optional[str] = None                   # resolved impact (from policy + proposal), always normalized to str
+    evidence_report: Any = None  # Optional[EvidenceReport] — typed as Any to avoid import issues
+    impact: Optional[str] = (
+        None  # resolved impact (from policy + proposal), always normalized to str
+    )
     eval_ms: int = 0
 
 
 # ------------------------------------------------------------------
 # Private helpers
 # ------------------------------------------------------------------
+
 
 def _instantiate_action_proposal(
     proposal: Dict[str, Any],
@@ -165,7 +177,8 @@ def _instantiate_action_proposal(
 
 
 def _verify_tool_binding(
-    ap: ActionProposal, expected_tool: str,
+    ap: ActionProposal,
+    expected_tool: str,
 ) -> Optional[PICError]:
     """Enforce tool binding. Returns None on success, PICError on mismatch."""
     try:
@@ -199,6 +212,7 @@ def _verify_tool_binding(
 # Full ActionProposal instantiation still happens later in
 # verify_proposal() so verify_causal_contract observes the final
 # post-evidence-verification trust state.
+
 
 def _normalize_provenance_entries_via_model_validator(
     proposal: Dict[str, Any],
@@ -258,8 +272,10 @@ def _normalize_provenance_entries_via_model_validator(
 # v0.8: Trust resolution helpers
 # ------------------------------------------------------------------
 
+
 def _resolve_impact(
-    proposal: Dict[str, Any], opts: PipelineOptions,
+    proposal: Dict[str, Any],
+    opts: PipelineOptions,
 ) -> Optional[str]:
     """Resolve effective impact using policy if available, else proposal impact."""
     tool_for_policy = opts.tool_name or opts.expected_tool
@@ -267,7 +283,8 @@ def _resolve_impact(
 
     if opts.policy and tool_for_policy:
         impact: Optional[str] = opts.policy.get_tool_impact(
-            tool_for_policy, proposal_impact=proposal_impact,
+            tool_for_policy,
+            proposal_impact=proposal_impact,
         )
     else:
         impact = proposal_impact
@@ -305,10 +322,7 @@ def _sanitize_provenance_trust(proposal: Dict[str, Any]) -> Dict[str, Any]:
         return proposal
 
     out = dict(proposal)
-    out["provenance"] = [
-        {**p, "trust": "untrusted"} if isinstance(p, dict) else p
-        for p in prov
-    ]
+    out["provenance"] = [{**p, "trust": "untrusted"} if isinstance(p, dict) else p for p in prov]
     return out
 
 
@@ -329,8 +343,7 @@ def _should_verify_evidence(
     evidence_required_by_policy = bool(impact and impact in require_for)
 
     should_verify = bool(
-        opts.verify_evidence
-        and (evidence_required_by_policy or bool(evidence_entries))
+        opts.verify_evidence and (evidence_required_by_policy or bool(evidence_entries))
     )
     return should_verify, evidence_required_by_policy
 
@@ -378,7 +391,9 @@ def _run_evidence_verification(
     On error, ``upgraded_proposal`` is ``None``.
     """
     should_verify, evidence_required_by_policy = _should_verify_evidence(
-        proposal, impact=impact, opts=opts,
+        proposal,
+        impact=impact,
+        opts=opts,
     )
 
     if not should_verify:
@@ -393,31 +408,40 @@ def _run_evidence_verification(
     root_dir = opts.evidence_root_dir or base_dir
 
     evidence_report = es.verify_all(  # type: ignore[union-attr]
-        proposal, base_dir=base_dir, evidence_root_dir=root_dir,
+        proposal,
+        base_dir=base_dir,
+        evidence_root_dir=root_dir,
     )
 
     if evidence_required_by_policy and not evidence_report.results:
-        return evidence_report, None, PICError(
-            code=PICErrorCode.EVIDENCE_REQUIRED,
-            message="Evidence required for this impact but no evidence entries were provided",
-            details={"tool": tool_for_policy, "impact": impact},
+        return (
+            evidence_report,
+            None,
+            PICError(
+                code=PICErrorCode.EVIDENCE_REQUIRED,
+                message="Evidence required for this impact but no evidence entries were provided",
+                details={"tool": tool_for_policy, "impact": impact},
+            ),
         )
 
     if not evidence_report.ok:
         failed: List[Dict[str, Any]] = [
-            {"id": r.id, "message": r.message}
-            for r in evidence_report.results
-            if not r.ok
+            {"id": r.id, "message": r.message} for r in evidence_report.results if not r.ok
         ]
-        return evidence_report, None, PICError(
-            code=PICErrorCode.EVIDENCE_FAILED,
-            message="Evidence verification failed",
-            details={"failed": failed},
+        return (
+            evidence_report,
+            None,
+            PICError(
+                code=PICErrorCode.EVIDENCE_FAILED,
+                message="Evidence verification failed",
+                details={"failed": failed},
+            ),
         )
 
     # Trust upgrade — returns new dict, does not mutate caller input
     upgraded = apply_verified_ids_to_provenance(  # type: ignore[misc]
-        proposal, evidence_report.verified_ids,
+        proposal,
+        evidence_report.verified_ids,
     )
     return evidence_report, upgraded, None
 
@@ -425,6 +449,7 @@ def _run_evidence_verification(
 # ------------------------------------------------------------------
 # Core pipeline: the ONE function conformance tests target
 # ------------------------------------------------------------------
+
 
 def verify_proposal(
     proposal: Dict[str, Any],
@@ -470,10 +495,12 @@ def verify_proposal(
         try:
             js_validate(instance=proposal, schema=schema)
         except JSValidationError as e:
-            return _fail(PICError(
-                code=PICErrorCode.SCHEMA_INVALID,
-                message=f"PIC schema validation failed: {e.message}",
-            ))
+            return _fail(
+                PICError(
+                    code=PICErrorCode.SCHEMA_INVALID,
+                    message=f"PIC schema validation failed: {e.message}",
+                )
+            )
 
         # 3. Trigger model-validation boundary for deprecated provenance values (v0.8.1+)
         # This fires Provenance.trust field validator on each entry, emitting
@@ -489,12 +516,16 @@ def verify_proposal(
 
         # 5. Determine whether evidence verification will actually run
         should_verify, _ = _should_verify_evidence(
-            proposal, impact=impact, opts=opts,
+            proposal,
+            impact=impact,
+            opts=opts,
         )
 
         # 6. Migration warning for legacy trust behavior (v0.8+)
         if _should_warn_on_self_asserted_trust(
-            proposal, opts=opts, should_verify_evidence=should_verify,
+            proposal,
+            opts=opts,
+            should_verify_evidence=should_verify,
         ):
             warnings.warn(
                 "PIC deprecation: proposal contains provenance with trust='trusted' "
@@ -510,9 +541,7 @@ def verify_proposal(
             )
 
         # 7. Build working proposal for this run
-        working_proposal = (
-            _sanitize_provenance_trust(proposal) if opts.strict_trust else proposal
-        )
+        working_proposal = _sanitize_provenance_trust(proposal) if opts.strict_trust else proposal
 
         # 8. Optional evidence verification + trust upgrade
         evidence_report = None
@@ -547,11 +576,14 @@ def verify_proposal(
         if effective_budget_ms is None and opts.limits is not None:
             effective_budget_ms = opts.limits.max_eval_ms
         if effective_budget_ms is not None and eval_ms > effective_budget_ms:
-            return _fail(PICError(
-                code=PICErrorCode.LIMIT_EXCEEDED,
-                message="PIC evaluation exceeded time budget",
-                details={"max_eval_ms": effective_budget_ms, "eval_ms": eval_ms},
-            ), impact=impact)
+            return _fail(
+                PICError(
+                    code=PICErrorCode.LIMIT_EXCEEDED,
+                    message="PIC evaluation exceeded time budget",
+                    details={"max_eval_ms": effective_budget_ms, "eval_ms": eval_ms},
+                ),
+                impact=impact,
+            )
 
         return PipelineResult(
             ok=True,
@@ -568,9 +600,14 @@ def verify_proposal(
     except Exception as e:
         # Unexpected error → fail closed
         log.exception("Unexpected error in PIC pipeline")
-        details = {"exception_type": type(e).__name__, "exception": str(e)} if _debug_enabled() else None
-        return _fail(PICError(
-            code=PICErrorCode.INTERNAL_ERROR,
-            message="Internal error in PIC verification pipeline",
-            details=details,
-        ), impact=proposal.get("impact"))
+        details = (
+            {"exception_type": type(e).__name__, "exception": str(e)} if _debug_enabled() else None
+        )
+        return _fail(
+            PICError(
+                code=PICErrorCode.INTERNAL_ERROR,
+                message="Internal error in PIC verification pipeline",
+                details=details,
+            ),
+            impact=proposal.get("impact"),
+        )

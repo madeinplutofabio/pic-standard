@@ -8,16 +8,16 @@ The integration-path tests exercise ``evaluate_pic_for_tool_call`` with
 MCP-shaped arguments to confirm end-to-end compatibility.  These are
 pure Python and do NOT require the mcp package.
 """
+
 from __future__ import annotations
 
 import pytest
-
 from conftest import make_proposal
-
 
 # ---------------------------------------------------------------------------
 # Upstream MCP SDK importability (exact symbols used by demos)
 # ---------------------------------------------------------------------------
+
 
 def test_mcp_fastmcp_importable():
     """mcp_pic_server_demo.py imports FastMCP (line 41)."""
@@ -40,6 +40,7 @@ def test_mcp_client_stdio_importable():
 # ---------------------------------------------------------------------------
 # Real integration-path smoke tests (pure Python, no mcp dep needed)
 # ---------------------------------------------------------------------------
+
 
 def test_evaluate_pic_allows_low_impact_without_proposal():
     """evaluate_pic_for_tool_call(): read-impact tool with no __pic → allowed, no proposal."""
@@ -72,7 +73,9 @@ def test_evaluate_pic_allows_trusted_money_proposal():
     )
 
     proposal = make_proposal(
-        tool="payments_send", impact="money", trust="trusted",
+        tool="payments_send",
+        impact="money",
+        trust="trusted",
         args={"to": "vendor", "amount": 50},
     )
 

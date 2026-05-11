@@ -1,8 +1,8 @@
 from __future__ import annotations
 
 import json
-from pathlib import Path
 from importlib import resources
+from pathlib import Path
 
 from jsonschema import validate as js_validate
 

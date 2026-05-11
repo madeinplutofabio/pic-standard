@@ -3,7 +3,6 @@ from pathlib import Path
 import pytest
 from langchain_core.messages import AIMessage
 from langchain_core.tools import tool
-
 from pic_standard.integrations import PICToolNode
 
 
@@ -179,11 +178,13 @@ def test_pic_toolnode_passes_config_to_pipeline(monkeypatch):
         "messages": [
             AIMessage(
                 content="",
-                tool_calls=[{
-                    "name": "payments_send",
-                    "args": {"amount": 500, "__pic": make_money_proposal("trusted")},
-                    "id": "5",
-                }],
+                tool_calls=[
+                    {
+                        "name": "payments_send",
+                        "args": {"amount": 500, "__pic": make_money_proposal("trusted")},
+                        "id": "5",
+                    }
+                ],
             )
         ]
     }

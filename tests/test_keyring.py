@@ -6,9 +6,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 import pytest
-
 from pic_standard.keyring import KeyRingError, TrustedKeyRing
-
 
 # 32-byte Ed25519 public key for tests (raw bytes), encoded as base64:
 # bytes(range(32)) -> base64 = AAECAwQFBgcICQoLDA0ODxAREhMUFRYXGBkaGxwdHh8=
@@ -68,7 +66,11 @@ def test_keyring_rejects_invalid_expires_at():
 
 def test_keyring_expires_at_enforced():
     kr = TrustedKeyRing.from_dict(
-        {"trusted_keys": {"k1": {"public_key": PUBKEY_B64_32, "expires_at": "2026-01-01T00:00:00Z"}}}
+        {
+            "trusted_keys": {
+                "k1": {"public_key": PUBKEY_B64_32, "expires_at": "2026-01-01T00:00:00Z"}
+            }
+        }
     )
 
     before = datetime(2025, 12, 31, 23, 0, 0, tzinfo=timezone.utc)

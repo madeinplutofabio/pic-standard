@@ -44,7 +44,9 @@ function resolveConfig(pluginConfig: Record<string, unknown>): PICPluginConfig {
                 ? pluginConfig.bridge_timeout_ms
                 : DEFAULT_CONFIG.bridge_timeout_ms,
         log_level:
-            pluginConfig.log_level === "debug" || pluginConfig.log_level === "info" || pluginConfig.log_level === "warn"
+            pluginConfig.log_level === "debug" ||
+            pluginConfig.log_level === "info" ||
+            pluginConfig.log_level === "warn"
                 ? pluginConfig.log_level
                 : DEFAULT_CONFIG.log_level,
     };
@@ -54,11 +56,11 @@ function resolveConfig(pluginConfig: Record<string, unknown>): PICPluginConfig {
  * Factory: creates the before_tool_call handler with captured plugin config.
  */
 export function createPicGateHandler(
-    pluginConfig: Record<string, unknown>,
+    pluginConfig: Record<string, unknown>
 ): (event: BeforeToolCallEvent, ctx: Record<string, unknown>) => Promise<BeforeToolCallReturn> {
     return async function handler(
         event: BeforeToolCallEvent,
-        _ctx: Record<string, unknown>,
+        _ctx: Record<string, unknown>
     ): Promise<BeforeToolCallReturn> {
         const config = resolveConfig(pluginConfig);
 
@@ -71,7 +73,10 @@ export function createPicGateHandler(
         // Defensive: ensure toolName is a non-empty string
         const toolName = event.toolName;
         if (typeof toolName !== "string" || toolName.trim() === "") {
-            return { block: true, blockReason: "PIC gate: malformed event (toolName missing or empty)" };
+            return {
+                block: true,
+                blockReason: "PIC gate: malformed event (toolName missing or empty)",
+            };
         }
 
         // ── Verify against PIC bridge ──────────────────────────────────────
@@ -79,28 +84,23 @@ export function createPicGateHandler(
 
         // ── Blocked ────────────────────────────────────────────────────────
         if (!result.allowed) {
-            const reason =
-                result.error?.message ?? "PIC contract violation (no details)";
+            const reason = result.error?.message ?? "PIC contract violation (no details)";
 
             if (config.log_level === "debug" || config.log_level === "info") {
-                console.log(
-                    `[pic-gate] BLOCKED tool=${toolName} reason="${reason}"`,
-                );
+                console.log(`[pic-gate] BLOCKED tool=${toolName} reason="${reason}"`);
             }
 
             return { block: true, blockReason: reason };
         }
 
         // ── Allowed — strip __pic metadata before tool executes ────────────
-        const { __pic, __pic_request_id, ...cleanParams } = params as Record<
-            string,
-            unknown
-        > & { __pic?: unknown; __pic_request_id?: unknown };
+        const { __pic, __pic_request_id, ...cleanParams } = params as Record<string, unknown> & {
+            __pic?: unknown;
+            __pic_request_id?: unknown;
+        };
 
         if (config.log_level === "debug") {
-            console.debug(
-                `[pic-gate] ALLOWED tool=${toolName} eval_ms=${result.eval_ms}`,
-            );
+            console.debug(`[pic-gate] ALLOWED tool=${toolName} eval_ms=${result.eval_ms}`);
         }
 
         return { params: cleanParams };

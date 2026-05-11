@@ -78,7 +78,6 @@ from pic_standard.pipeline import (  # noqa: E402
     verify_proposal,
 )
 
-
 # ---------------------------------------------------------------------------
 # Schema constants
 # ---------------------------------------------------------------------------
@@ -96,8 +95,8 @@ MANIFEST_TOP_FIELDS = {"version", "vectors"}
 # Anything outside the declared set triggers ManifestError.
 ENTRY_FIELDS: Dict[tuple, set] = {
     ("canonicalization", "canonical_match"): {"id", "file", "mode", "expected"},
-    ("core", "allow"):                        {"id", "file", "mode", "expected"},
-    ("core", "block"):                        {"id", "file", "mode", "expected", "expected_error_code"},
+    ("core", "allow"): {"id", "file", "mode", "expected"},
+    ("core", "block"): {"id", "file", "mode", "expected", "expected_error_code"},
 }
 
 
@@ -105,9 +104,11 @@ ENTRY_FIELDS: Dict[tuple, set] = {
 # Result types
 # ---------------------------------------------------------------------------
 
+
 @dataclass
 class VectorResult:
     """Outcome of running a single manifest vector."""
+
     id: str
     mode: str
     passed: bool
@@ -117,6 +118,7 @@ class VectorResult:
 @dataclass
 class RunnerReport:
     """Aggregate outcome of running a manifest."""
+
     manifest_version: str
     results: List[VectorResult] = field(default_factory=list)
 
@@ -150,7 +152,9 @@ class RunnerReport:
             lines.append(f"Summary: {self.passed_count}/{self.total_count} passed")
         else:
             failed = self.total_count - self.passed_count
-            lines.append(f"Summary: {self.passed_count}/{self.total_count} passed ({failed} failed)")
+            lines.append(
+                f"Summary: {self.passed_count}/{self.total_count} passed ({failed} failed)"
+            )
         return "\n".join(lines)
 
 
@@ -161,6 +165,7 @@ class ManifestError(Exception):
 # ---------------------------------------------------------------------------
 # Manifest validation
 # ---------------------------------------------------------------------------
+
 
 def _validate_manifest(manifest: Any) -> None:
     """Validate manifest structure at load time.
@@ -191,7 +196,7 @@ def _validate_manifest(manifest: Any) -> None:
         try:
             _validate_entry(entry)
         except ManifestError as e:
-            raise ManifestError(f"manifest.vectors[{i}]: {e}")
+            raise ManifestError(f"manifest.vectors[{i}]: {e}") from e
         eid = entry["id"]
         if eid in seen_ids:
             raise ManifestError(f"manifest.vectors[{i}]: duplicate id {eid!r}")
@@ -245,8 +250,10 @@ def _validate_entry(entry: Any) -> None:
 # Manifest-vector consistency check
 # ---------------------------------------------------------------------------
 
+
 def _check_vector_file_agrees_with_entry(
-    vec: Dict[str, Any], entry: Dict[str, Any],
+    vec: Dict[str, Any],
+    entry: Dict[str, Any],
 ) -> Optional[str]:
     """Check that the vector file's internal fields agree with the manifest entry.
 
@@ -264,10 +271,7 @@ def _check_vector_file_agrees_with_entry(
 
     vec_expected = vec.get("expected")
     if vec_expected != entry["expected"]:
-        return (
-            f"'expected' mismatch: manifest={entry['expected']!r} "
-            f"file={vec_expected!r}"
-        )
+        return f"'expected' mismatch: manifest={entry['expected']!r} file={vec_expected!r}"
 
     if entry["expected"] == "block":
         vec_code = vec.get("expected_error_code")
@@ -291,6 +295,7 @@ def _check_vector_file_agrees_with_entry(
 # Per-mode vector execution
 # ---------------------------------------------------------------------------
 
+
 def _run_canonicalization_vector(vec: Dict[str, Any]) -> VectorResult:
     """Verify byte-exact canonicalization output and SHA-256 against the vector file."""
     vid = vec["id"]
@@ -299,28 +304,42 @@ def _run_canonicalization_vector(vec: Dict[str, Any]) -> VectorResult:
         expected_hex = vec["expected_canonical_bytes_hex"]
         expected_sha = vec["expected_sha256_hex"]
     except KeyError as e:
-        return VectorResult(id=vid, mode="canonicalization", passed=False,
-                            reason=f"vector file missing required field: {e}")
+        return VectorResult(
+            id=vid,
+            mode="canonicalization",
+            passed=False,
+            reason=f"vector file missing required field: {e}",
+        )
 
     try:
         actual_bytes = canonicalize(input_value)
     except Exception as e:
-        return VectorResult(id=vid, mode="canonicalization", passed=False,
-                            reason=f"canonicalize() raised {type(e).__name__}: {e}")
+        return VectorResult(
+            id=vid,
+            mode="canonicalization",
+            passed=False,
+            reason=f"canonicalize() raised {type(e).__name__}: {e}",
+        )
 
     actual_hex = actual_bytes.hex()
     if actual_hex != expected_hex:
-        return VectorResult(id=vid, mode="canonicalization", passed=False,
-                            reason=(f"canonical bytes mismatch\n"
-                                    f"  expected: {expected_hex}\n"
-                                    f"  actual:   {actual_hex}"))
+        return VectorResult(
+            id=vid,
+            mode="canonicalization",
+            passed=False,
+            reason=(
+                f"canonical bytes mismatch\n  expected: {expected_hex}\n  actual:   {actual_hex}"
+            ),
+        )
 
     actual_sha = hashlib.sha256(actual_bytes).hexdigest()
     if actual_sha != expected_sha:
-        return VectorResult(id=vid, mode="canonicalization", passed=False,
-                            reason=(f"SHA-256 mismatch\n"
-                                    f"  expected: {expected_sha}\n"
-                                    f"  actual:   {actual_sha}"))
+        return VectorResult(
+            id=vid,
+            mode="canonicalization",
+            passed=False,
+            reason=(f"SHA-256 mismatch\n  expected: {expected_sha}\n  actual:   {actual_sha}"),
+        )
 
     return VectorResult(id=vid, mode="canonicalization", passed=True)
 
@@ -336,52 +355,73 @@ def _run_core_vector(vec: Dict[str, Any], entry: Dict[str, Any]) -> VectorResult
     """
     vid = vec["id"]
     if "proposal" not in vec:
-        return VectorResult(id=vid, mode="core", passed=False,
-                            reason="vector file missing required field: 'proposal'")
+        return VectorResult(
+            id=vid,
+            mode="core",
+            passed=False,
+            reason="vector file missing required field: 'proposal'",
+        )
 
     proposal = vec["proposal"]
     options_dict = vec.get("options", {})
     try:
         options = PipelineOptions(**options_dict)
     except Exception as e:
-        return VectorResult(id=vid, mode="core", passed=False,
-                            reason=f"could not construct PipelineOptions: {type(e).__name__}: {e}")
+        return VectorResult(
+            id=vid,
+            mode="core",
+            passed=False,
+            reason=f"could not construct PipelineOptions: {type(e).__name__}: {e}",
+        )
 
     try:
         with warnings.catch_warnings():
             warnings.filterwarnings("ignore", category=PICTrustFutureWarning)
             result = verify_proposal(proposal, options=options)
     except Exception as e:
-        return VectorResult(id=vid, mode="core", passed=False,
-                            reason=f"verify_proposal() raised {type(e).__name__}: {e}")
+        return VectorResult(
+            id=vid,
+            mode="core",
+            passed=False,
+            reason=f"verify_proposal() raised {type(e).__name__}: {e}",
+        )
 
     if entry["expected"] == "allow":
         if result.ok:
             return VectorResult(id=vid, mode="core", passed=True)
         code = result.error.code.value if (result.error and result.error.code) else "<none>"
-        return VectorResult(id=vid, mode="core", passed=False,
-                            reason=f"expected allow but got block ({code})")
+        return VectorResult(
+            id=vid, mode="core", passed=False, reason=f"expected allow but got block ({code})"
+        )
 
     # expected == "block"
     if result.ok:
-        return VectorResult(id=vid, mode="core", passed=False,
-                            reason="expected block but proposal was allowed")
+        return VectorResult(
+            id=vid, mode="core", passed=False, reason="expected block but proposal was allowed"
+        )
     if result.error is None or result.error.code is None:
         return VectorResult(
-            id=vid, mode="core", passed=False,
+            id=vid,
+            mode="core",
+            passed=False,
             reason="expected block with error code, got block with no error code",
         )
     actual_code = result.error.code.value
     expected_code = entry["expected_error_code"]
     if actual_code != expected_code:
-        return VectorResult(id=vid, mode="core", passed=False,
-                            reason=f"expected {expected_code} but got {actual_code}")
+        return VectorResult(
+            id=vid,
+            mode="core",
+            passed=False,
+            reason=f"expected {expected_code} but got {actual_code}",
+        )
     return VectorResult(id=vid, mode="core", passed=True)
 
 
 # ---------------------------------------------------------------------------
 # Orchestrator
 # ---------------------------------------------------------------------------
+
 
 def run_manifest(manifest_path: Path) -> RunnerReport:
     """Load and validate a manifest, execute every vector, return aggregate report.
@@ -400,7 +440,7 @@ def run_manifest(manifest_path: Path) -> RunnerReport:
         try:
             manifest = json.load(f)
         except json.JSONDecodeError as e:
-            raise ManifestError(f"manifest is not valid JSON: {e}")
+            raise ManifestError(f"manifest is not valid JSON: {e}") from e
 
     _validate_manifest(manifest)
 
@@ -410,34 +450,50 @@ def run_manifest(manifest_path: Path) -> RunnerReport:
     for entry in manifest["vectors"]:
         vec_path = conformance_root / entry["file"]
         if not vec_path.exists():
-            report.results.append(VectorResult(
-                id=entry["id"], mode=entry["mode"], passed=False,
-                reason=f"vector file not found: {entry['file']}",
-            ))
+            report.results.append(
+                VectorResult(
+                    id=entry["id"],
+                    mode=entry["mode"],
+                    passed=False,
+                    reason=f"vector file not found: {entry['file']}",
+                )
+            )
             continue
         try:
             with vec_path.open("r", encoding="utf-8") as f:
                 vec = json.load(f)
         except json.JSONDecodeError as e:
-            report.results.append(VectorResult(
-                id=entry["id"], mode=entry["mode"], passed=False,
-                reason=f"vector file is not valid JSON: {e}",
-            ))
+            report.results.append(
+                VectorResult(
+                    id=entry["id"],
+                    mode=entry["mode"],
+                    passed=False,
+                    reason=f"vector file is not valid JSON: {e}",
+                )
+            )
             continue
 
         if vec.get("id") != entry["id"]:
-            report.results.append(VectorResult(
-                id=entry["id"], mode=entry["mode"], passed=False,
-                reason=f"id mismatch: manifest={entry['id']!r} file={vec.get('id')!r}",
-            ))
+            report.results.append(
+                VectorResult(
+                    id=entry["id"],
+                    mode=entry["mode"],
+                    passed=False,
+                    reason=f"id mismatch: manifest={entry['id']!r} file={vec.get('id')!r}",
+                )
+            )
             continue
 
         drift = _check_vector_file_agrees_with_entry(vec, entry)
         if drift is not None:
-            report.results.append(VectorResult(
-                id=entry["id"], mode=entry["mode"], passed=False,
-                reason=f"manifest/vector drift: {drift}",
-            ))
+            report.results.append(
+                VectorResult(
+                    id=entry["id"],
+                    mode=entry["mode"],
+                    passed=False,
+                    reason=f"manifest/vector drift: {drift}",
+                )
+            )
             continue
 
         if entry["mode"] == "canonicalization":
@@ -452,6 +508,7 @@ def run_manifest(manifest_path: Path) -> RunnerReport:
 # CLI
 # ---------------------------------------------------------------------------
 
+
 def main(argv: Optional[List[str]] = None) -> int:
     parser = argparse.ArgumentParser(
         prog="python -m conformance.run",
@@ -460,10 +517,15 @@ def main(argv: Optional[List[str]] = None) -> int:
     parser.add_argument(
         "--manifest",
         default=str(_REPO_ROOT / "conformance" / "manifest.json"),
-        help="Path to the conformance manifest JSON (default: conformance/manifest.json at repo root).",
+        help=(
+            "Path to the conformance manifest JSON "
+            "(default: conformance/manifest.json at repo root)."
+        ),
     )
     parser.add_argument(
-        "--verbose", "-v", action="store_true",
+        "--verbose",
+        "-v",
+        action="store_true",
         help="Show per-vector detail even for passing vectors.",
     )
     args = parser.parse_args(argv)

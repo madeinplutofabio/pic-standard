@@ -80,11 +80,9 @@ describe("plugin registration", () => {
         expect(mockApi.on).toHaveBeenCalledTimes(3);
         expect(mockApi.registerHook).not.toHaveBeenCalled();
 
-        expect(hookNames.sort()).toEqual([
-            "before_agent_start",
-            "before_tool_call",
-            "tool_result_persist",
-        ].sort());
+        expect(hookNames.sort()).toEqual(
+            ["before_agent_start", "before_tool_call", "tool_result_persist"].sort()
+        );
     });
 
     it("register() passes handlers as functions (not undefined)", () => {

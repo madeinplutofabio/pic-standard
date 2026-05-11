@@ -46,3 +46,89 @@ where = ["sdk-python"]
 
 [tool.setuptools.package-data]
 pic_standard = ["schemas/*.json"]
+
+# ------------------------------------------------------------------
+# Code style enforcement (OpenSSF Best Practices, Passing tier)
+# ------------------------------------------------------------------
+
+[tool.ruff]
+# Lowest-supported Python version. Ruff uses this to tune lint defaults.
+target-version = "py310"
+# Sensible line length for protocol-grade code with descriptive names; matches
+# the Prettier line length used in integrations/openclaw for cross-language
+# consistency.
+line-length = 100
+# Vendored third-party module (Trail of Bits rfc8785.py, Apache 2.0).
+# We don't reformat upstream code; PIC-specific behavior lives in
+# pic_standard.canonical which wraps the vendored module.
+extend-exclude = [
+  "sdk-python/pic_standard/_rfc8785.py",
+]
+
+[tool.ruff.lint]
+# Conservative baseline for this PR. Rule families enabled:
+#   E   pycodestyle errors
+#   F   pyflakes (unused imports, undefined names — high value)
+#   W   pycodestyle warnings
+#   I   isort (import sorting)
+#   N   pep8-naming
+#   B   bugbear (likely-bug patterns)
+#   SIM simplify (suggest simpler equivalents)
+#   RUF ruff-specific
+#
+# Intentionally NOT enabled in this PR (deferred to a later tightening pass):
+#   UP  pyupgrade — would force widespread `Optional[X]` → `X | None` and
+#       `List[int]` → `list[int]` rewrites across the codebase. Useful but
+#       widens this PR's diff with non-essential modernization; better as a
+#       focused follow-up so reviewers can evaluate it as one coherent change.
+#
+# Add per-file-ignores below for genuine exceptions; use `# noqa: <RULE>`
+# inline for one-off documented escapes.
+select = ["E", "F", "W", "I", "N", "B", "SIM", "RUF"]
+
+# Per-file ignores — kept minimal; add only when an exception is genuinely
+# documented and reviewable.
+[tool.ruff.lint.per-file-ignores]
+# Tests intentionally do unusual things (long lines for explicit test data,
+# unused-import where pytest discovers fixtures, etc.). Loosen the strictest
+# line-length rule in tests rather than littering files with `# noqa`.
+"tests/**/*.py" = ["E501"]
+
+[tool.ruff.format]
+# Defaults are black-equivalent: double-quote strings, magic trailing commas
+# preserved, line-ending preserved per-file. No project-specific overrides.
+
+# ------------------------------------------------------------------
+# Statement coverage (OpenSSF Best Practices Passing tier, ≥80%)
+# ------------------------------------------------------------------
+
+[tool.coverage.run]
+# Measure the installed `pic_standard` package by import name. Import-name
+# source is more robust than path source across invocation styles (running
+# `coverage` from repo root vs. sdk-python/ vs. a CI cwd) — coverage.py
+# resolves the import path to the actual on-disk location automatically.
+source = ["pic_standard"]
+# Statement coverage; branch coverage is a Gold-tier requirement, out of
+# scope for this Passing-tier cluster.
+branch = false
+# Vendored module (_rfc8785.py) is included in measurement (98%+ exercised
+# by canonicalization tests). Excluding it would understate our test reach.
+
+[tool.coverage.report]
+# OpenSSF Passing-tier threshold. CI runs `coverage report --fail-under=80`
+# (gate enforced in .github/workflows/ci.yml).
+fail_under = 80
+# Show which lines are uncovered when a developer runs `coverage report`
+# locally — useful for closing the cli.py gap (~41%, deferred to a future PR).
+show_missing = true
+# Display percentages to one decimal place so small improvements are visible.
+precision = 1
+# Lines that don't count toward coverage measurement: pragma-marked,
+# main-guards, TYPE_CHECKING blocks, NotImplementedError stubs, ellipsis stubs.
+exclude_lines = [
+  "pragma: no cover",
+  "if __name__ == .__main__.:",
+  "if TYPE_CHECKING:",
+  "raise NotImplementedError",
+  "\\.\\.\\.",
+]

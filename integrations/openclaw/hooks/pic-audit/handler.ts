@@ -60,7 +60,9 @@ function resolveConfig(pluginConfig: Record<string, unknown>): PICPluginConfig {
                 ? pluginConfig.bridge_timeout_ms
                 : DEFAULT_CONFIG.bridge_timeout_ms,
         log_level:
-            pluginConfig.log_level === "debug" || pluginConfig.log_level === "info" || pluginConfig.log_level === "warn"
+            pluginConfig.log_level === "debug" ||
+            pluginConfig.log_level === "info" ||
+            pluginConfig.log_level === "warn"
                 ? pluginConfig.log_level
                 : DEFAULT_CONFIG.log_level,
     };
@@ -70,12 +72,9 @@ function resolveConfig(pluginConfig: Record<string, unknown>): PICPluginConfig {
  * Factory: creates the tool_result_persist handler with captured plugin config.
  */
 export function createPicAuditHandler(
-    pluginConfig: Record<string, unknown>,
+    pluginConfig: Record<string, unknown>
 ): (event: ToolResultPersistEvent, ctx: ToolResultPersistContext) => void {
-    return function handler(
-        event: ToolResultPersistEvent,
-        ctx: ToolResultPersistContext,
-    ): void {
+    return function handler(event: ToolResultPersistEvent, ctx: ToolResultPersistContext): void {
         const config = resolveConfig(pluginConfig);
 
         const toolName = event.toolName ?? ctx.toolName ?? "unknown";
@@ -94,7 +93,7 @@ export function createPicAuditHandler(
         } else if (config.log_level === "info") {
             console.log(
                 `[pic-audit] tool=${entry.tool} callId=${entry.toolCallId ?? "n/a"} ` +
-                `synthetic=${entry.isSynthetic}`,
+                    `synthetic=${entry.isSynthetic}`
             );
         }
     };

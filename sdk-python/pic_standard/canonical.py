@@ -19,7 +19,7 @@ Public API:
     CanonicalizationError
 
 Scope (per docs/canonicalization.md §12):
-    - Implements §7.1–§7.9 and §7.12–§7.13 (canonicalization rules).
+    - Implements §7.1-§7.9 and §7.12-§7.13 (canonicalization rules).
     - Implements the canonical-byte rule used by §8.4 for attestation
       object serialization, and provides convenience helpers:
         * ``sha256_hex`` for digests computed over canonical JSON bytes —
@@ -61,12 +61,11 @@ from typing import Any
 
 from . import _rfc8785
 
-
 __all__ = [
-    "canonicalize",
-    "sha256_hex",
-    "intent_digest_hex",
     "CanonicalizationError",
+    "canonicalize",
+    "intent_digest_hex",
+    "sha256_hex",
 ]
 
 
@@ -94,7 +93,7 @@ def canonicalize(value: Any) -> bytes:
     """Serialize ``value`` to PIC Canonical JSON v1 bytes.
 
     Implements RFC 8785 serialization semantics plus the PIC canonicalization
-    rules in §7.1–§7.9 and §7.12–§7.13 of ``docs/canonicalization.md``. The
+    rules in §7.1-§7.9 and §7.12-§7.13 of ``docs/canonicalization.md``. The
     returned bytes are the canonical serialization used as input to §8.4
     attestation-object signing and to the digests in §8.1 ``args_digest``
     and §8.2 ``claims_digest``. §8.3 ``intent_digest`` uses a different
@@ -229,6 +228,7 @@ def intent_digest_hex(intent: str) -> str:
 #      CanonicalizationError.
 # ------------------------------------------------------------------
 
+
 def _validate(value: Any, *, seen: set) -> None:
     """Pre-validate input before handing to the vendored formatter.
 
@@ -265,7 +265,7 @@ def _validate(value: Any, *, seen: set) -> None:
     seen.add(oid)
     try:
         if isinstance(value, dict):
-            for k in value.keys():
+            for k in value:
                 # §7.3: non-string keys rejected at the wrapper boundary.
                 if not isinstance(k, str):
                     raise CanonicalizationError(

@@ -1,8 +1,11 @@
-# This shows how to force an LLM to generate a PIC-compliant contract using LangChain's structured output.
+# This shows how to force an LLM to generate a PIC-compliant contract using
+# LangChain's structured output.
 
-from langchain_openai import ChatOpenAI
-from langchain_core.pydantic_v1 import BaseModel, Field
 from typing import List
+
+from langchain_core.pydantic_v1 import BaseModel, Field
+from langchain_openai import ChatOpenAI
+
 
 # Define the PIC Schema for the LLM
 class PICContract(BaseModel):
@@ -12,6 +15,7 @@ class PICContract(BaseModel):
     evidence_claims: List[str] = Field(description="Justification for the action")
     tool_name: str
     tool_args: dict
+
 
 # Initialize LLM with Structured Output
 llm = ChatOpenAI(model="gpt-4o")

@@ -5,7 +5,6 @@ import json
 from pathlib import Path
 
 import pytest
-
 from pic_standard.evidence import EvidenceSystem
 
 
@@ -42,11 +41,7 @@ def test_evidence_verify_mixed_hash_and_sig(monkeypatch, tmp_path: Path):
     keyring_path = tmp_path / "pic_keys.test.json"
     keyring_path.write_text(
         json.dumps(
-            {
-                "trusted_keys": {
-                    "demo_signer_v1": "u1esUbs/ZYS3PTPMIxiwsh47pyCUAv5VgzrmjEKbw6k="
-                }
-            },
+            {"trusted_keys": {"demo_signer_v1": "u1esUbs/ZYS3PTPMIxiwsh47pyCUAv5VgzrmjEKbw6k="}},
             indent=2,
         ),
         encoding="utf-8",

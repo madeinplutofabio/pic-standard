@@ -8,18 +8,18 @@ langchain-core will fail CI if the API surface changes.
 The final two tests exercise the real PICToolNode integration path
 to confirm end-to-end compatibility.
 """
+
 from __future__ import annotations
 
 import pytest
+from conftest import make_proposal
 from langchain_core.messages import AIMessage, ToolMessage
 from langchain_core.tools import BaseTool, tool
-
-from conftest import make_proposal
-
 
 # ---------------------------------------------------------------------------
 # Upstream API shape checks
 # ---------------------------------------------------------------------------
+
 
 def test_ai_message_has_tool_calls():
     """PICToolNode reads ``last.tool_calls`` (line 44)."""
@@ -62,6 +62,7 @@ def test_tool_decorator_produces_base_tool():
 # Real integration-path smoke tests
 # ---------------------------------------------------------------------------
 
+
 def test_pic_toolnode_smoke_allows_trusted_call():
     """Full PICToolNode.invoke() path: trusted proposal → tool executes → ToolMessage."""
     from pic_standard.integrations.langgraph_pic_toolnode import PICToolNode
@@ -72,7 +73,9 @@ def test_pic_toolnode_smoke_allows_trusted_call():
         return f"Hello, {name}!"
 
     proposal = make_proposal(
-        tool="greet", impact="read", intent="Greet the user",
+        tool="greet",
+        impact="read",
+        intent="Greet the user",
         args={"name": "Alice"},
     )
 
@@ -111,7 +114,10 @@ def test_pic_toolnode_smoke_blocks_untrusted_money():
         return f"Paid {amount}"
 
     proposal = make_proposal(
-        tool="pay", impact="money", trust="untrusted", prov_id="web_page",
+        tool="pay",
+        impact="money",
+        trust="untrusted",
+        prov_id="web_page",
         args={"amount": 100},
     )
 

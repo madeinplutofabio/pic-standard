@@ -1,7 +1,6 @@
-import json
-import pytest
-from pathlib import Path
 import hashlib
+import json
+from pathlib import Path
 
 from pic_standard.evidence import EvidenceSystem, apply_verified_ids_to_provenance
 from pic_standard.verifier import ActionProposal
@@ -11,7 +10,7 @@ ROOT = Path(__file__).resolve().parents[1]
 
 def verify_multiple_evidences(proposal: dict, base_dir: Path) -> dict:
     """Helper function to verify multiple pieces of evidence in a proposal.
-    
+
     Processes all evidence items and returns a summary with verification results.
     """
     system = EvidenceSystem()
@@ -60,7 +59,7 @@ def test_evidence_invalid_file_path_raises_error():
             }
         ]
     }
-    
+
     report = EvidenceSystem().verify_all(proposal, base_dir=ROOT)
     assert not report.ok
     assert len(report.results) == 1
@@ -83,7 +82,7 @@ def test_evidence_invalid_hash_string_fails():
             }
         ]
     }
-    
+
     report = EvidenceSystem().verify_all(proposal, base_dir=proposal_path.parent)
     assert not report.ok
     assert len(report.results) == 1
@@ -99,16 +98,16 @@ def test_evidence_large_file_verification(tmp_path):
     """Verify that evidence verification handles large files (>1 MB) correctly."""
     # Create a large file in pytest's temporary directory
     large_file_path = tmp_path / "test_large_evidence.bin"
-    
+
     # Create a file larger than 1 MB (2 MB in this case)
     file_size = 2 * 1024 * 1024  # 2 MB
     with open(large_file_path, "wb") as f:
         f.write(b"x" * file_size)
-    
+
     # Compute the SHA256 hash
     with open(large_file_path, "rb") as f:
         file_hash = hashlib.sha256(f.read()).hexdigest()
-    
+
     # Create a proposal with the large file evidence
     proposal = {
         "evidence": [
@@ -120,7 +119,7 @@ def test_evidence_large_file_verification(tmp_path):
             }
         ]
     }
-    
+
     # Verify the large file evidence
     report = EvidenceSystem().verify_all(proposal, base_dir=tmp_path)
     assert report.ok
@@ -136,17 +135,17 @@ def test_evidence_multiple_pieces_verification(tmp_path):
     file1_path = tmp_path / "evidence_file1.txt"
     file2_path = tmp_path / "evidence_file2.txt"
     file3_path = tmp_path / "evidence_file3.txt"
-    
+
     # Create three test files with different content
     file1_path.write_text("First evidence file")
     file2_path.write_text("Second evidence file with different content")
     file3_path.write_text("Third evidence file")
-    
+
     # Compute SHA256 hashes for each file
     hash1 = hashlib.sha256(file1_path.read_bytes()).hexdigest()
     hash2 = hashlib.sha256(file2_path.read_bytes()).hexdigest()
     hash3 = hashlib.sha256(file3_path.read_bytes()).hexdigest()
-    
+
     # Create a proposal with multiple evidence items
     proposal = {
         "evidence": [
@@ -170,10 +169,10 @@ def test_evidence_multiple_pieces_verification(tmp_path):
             },
         ]
     }
-    
+
     # Verify multiple evidences using the helper function
     summary = verify_multiple_evidences(proposal, tmp_path)
-    
+
     # Assertions
     assert summary["ok"], "All evidence should be verified successfully"
     assert summary["total_evidence"] == 3, "Should have 3 evidence items"
@@ -181,7 +180,7 @@ def test_evidence_multiple_pieces_verification(tmp_path):
     assert "evidence_1" in summary["verified_ids"]
     assert "evidence_2" in summary["verified_ids"]
     assert "evidence_3" in summary["verified_ids"]
-    
+
     # Verify each result is successful
     for result in summary["results"]:
         assert result.ok, f"Evidence {result.id} should be verified"

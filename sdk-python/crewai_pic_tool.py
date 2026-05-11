@@ -1,8 +1,9 @@
 # This shows how to wrap any CrewAI tool with a PIC safety layer.
-  
+
 from crewai_tools import BaseTool
 
-class PIC_ProtectedTool(BaseTool):
+
+class PICProtectedTool(BaseTool):
     name: str = "Protected Financial Tool"
     description: str = "A tool that requires a PIC contract before executing."
 
@@ -11,7 +12,7 @@ class PIC_ProtectedTool(BaseTool):
         # 2. Run the Verifier
         if pic_contract.get("impact") == "money" and not self.has_trusted_evidence(pic_contract):
             return "❌ Access Denied: PIC Contract Violation. No trusted provenance."
-        
+
         # 3. Only execute if valid
         return f"✅ Payment of ${amount} to {recipient} authorized via PIC."
 

@@ -2,8 +2,8 @@ from __future__ import annotations
 
 import asyncio
 
-from pic_standard.policy import PICPolicy
 from pic_standard.integrations.mcp_pic_guard import guard_mcp_tool_async
+from pic_standard.policy import PICPolicy
 
 
 def _proposal(trust: str) -> dict:

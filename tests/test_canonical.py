@@ -26,14 +26,12 @@ import math
 from pathlib import Path
 
 import pytest
-
 from pic_standard.canonical import (
     CanonicalizationError,
     canonicalize,
     intent_digest_hex,
     sha256_hex,
 )
-
 
 # ---------------------------------------------------------------------------
 # Conformance vector sweep
@@ -85,14 +83,13 @@ def test_vector_sweep_nonempty():
     (conformance/manifest.json) once the conformance runner lands.
     """
     vectors = _load_canonicalization_vectors()
-    assert len(vectors) > 0, (
-        f"no canonicalization vectors discovered at {_CANON_VECTOR_DIR}"
-    )
+    assert len(vectors) > 0, f"no canonicalization vectors discovered at {_CANON_VECTOR_DIR}"
 
 
 # ---------------------------------------------------------------------------
 # canonicalize() — happy-path edge cases
 # ---------------------------------------------------------------------------
+
 
 def test_canonicalize_empty_dict():
     assert canonicalize({}) == b"{}"
@@ -106,15 +103,18 @@ def test_canonicalize_empty_string():
     assert canonicalize("") == b'""'
 
 
-@pytest.mark.parametrize("value,expected", [
-    (None, b"null"),
-    (True, b"true"),
-    (False, b"false"),
-    (0, b"0"),
-    (1, b"1"),
-    (-1, b"-1"),
-    ("hello", b'"hello"'),
-])
+@pytest.mark.parametrize(
+    "value,expected",
+    [
+        (None, b"null"),
+        (True, b"true"),
+        (False, b"false"),
+        (0, b"0"),
+        (1, b"1"),
+        (-1, b"-1"),
+        ("hello", b'"hello"'),
+    ],
+)
 def test_canonicalize_top_level_primitives(value, expected):
     """Top-level canonicalize works for each JSON primitive type."""
     assert canonicalize(value) == expected
@@ -148,14 +148,18 @@ def test_canonicalize_negative_zero_serializes_as_zero():
 # canonicalize() — rejection cases (§10.1 implementation-local)
 # ---------------------------------------------------------------------------
 
-@pytest.mark.parametrize("bad_number", [
-    float("nan"),
-    float("inf"),
-    float("-inf"),
-    math.nan,
-    math.inf,
-    -math.inf,
-])
+
+@pytest.mark.parametrize(
+    "bad_number",
+    [
+        float("nan"),
+        float("inf"),
+        float("-inf"),
+        math.nan,
+        math.inf,
+        -math.inf,
+    ],
+)
 def test_canonicalize_rejects_non_finite_numbers(bad_number):
     """§7.9: NaN, +Infinity, -Infinity are not representable in JSON and must be rejected."""
     with pytest.raises(CanonicalizationError):
@@ -166,15 +170,18 @@ def test_canonicalize_rejects_non_finite_numbers(bad_number):
         canonicalize([1, bad_number, 2])
 
 
-@pytest.mark.parametrize("bad_key", [
-    1,
-    1.5,
-    None,
-    True,
-    (1, 2),
-    b"bytes_key",
-    frozenset([1, 2]),
-])
+@pytest.mark.parametrize(
+    "bad_key",
+    [
+        1,
+        1.5,
+        None,
+        True,
+        (1, 2),
+        b"bytes_key",
+        frozenset([1, 2]),
+    ],
+)
 def test_canonicalize_rejects_non_string_keys(bad_key):
     """§7.3: object member names MUST be strings."""
     with pytest.raises(CanonicalizationError):
@@ -197,6 +204,7 @@ def test_canonicalize_rejects_non_string_key_even_if_it_implements_encode():
     This test pins that check so a future "simplifying" refactor that
     removes the PIC-side check cannot land without this test failing.
     """
+
     class SneakyKey:
         def encode(self, *_args, **_kwargs):
             return b"fake"
@@ -252,13 +260,16 @@ def test_canonicalize_rejects_tuple_in_list():
         canonicalize([1, (2, 3), 4])
 
 
-@pytest.mark.parametrize("bad_value", [
-    {1, 2, 3},
-    object(),
-    complex(1, 2),
-    b"bytes",
-    bytearray(b"bytes"),
-])
+@pytest.mark.parametrize(
+    "bad_value",
+    [
+        {1, 2, 3},
+        object(),
+        complex(1, 2),
+        b"bytes",
+        bytearray(b"bytes"),
+    ],
+)
 def test_canonicalize_rejects_non_serializable_host_types(bad_value):
     """Host-language types with no natural JSON mapping are non-conformant."""
     with pytest.raises(CanonicalizationError):
@@ -297,6 +308,7 @@ def test_canonicalize_rejects_integer_exceeding_safe_range_negative():
 # sha256_hex() — convenience hash over canonicalize output
 # ---------------------------------------------------------------------------
 
+
 def test_sha256_hex_matches_canon_001_vector():
     """
     sha256_hex spot-check: the §9.1 worked example input produces the SHA-256
@@ -327,6 +339,7 @@ def test_sha256_hex_propagates_canonicalization_errors():
 # ---------------------------------------------------------------------------
 # intent_digest_hex() — §8.3 raw-UTF-8 path, distinct from §8.1 / §8.2
 # ---------------------------------------------------------------------------
+
 
 def test_intent_digest_hex_happy_path():
     """A normal intent string returns a 64-char lowercase hex digest."""
@@ -380,16 +393,19 @@ def test_intent_digest_hex_rejects_lone_surrogate():
         intent_digest_hex("prefix" + chr(0xDC00) + "suffix")
 
 
-@pytest.mark.parametrize("bad_input", [
-    123,
-    1.5,
-    None,
-    True,
-    b"hello",
-    ["hello"],
-    {"text": "hello"},
-    ("hello",),
-])
+@pytest.mark.parametrize(
+    "bad_input",
+    [
+        123,
+        1.5,
+        None,
+        True,
+        b"hello",
+        ["hello"],
+        {"text": "hello"},
+        ("hello",),
+    ],
+)
 def test_intent_digest_hex_rejects_non_str(bad_input):
     """
     intent_digest_hex MUST raise CanonicalizationError on non-str inputs, NOT
