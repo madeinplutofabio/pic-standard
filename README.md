@@ -4,6 +4,7 @@
 
 [![PyPI version](https://img.shields.io/pypi/v/pic-standard.svg?logo=pypi&logoColor=white)](https://pypi.org/project/pic-standard/)
 [![PyPI downloads](https://img.shields.io/pypi/dm/pic-standard.svg?logo=pypi&logoColor=white)](https://pypi.org/project/pic-standard/)
+[![Signed releases](https://img.shields.io/badge/signed%20releases-Sigstore%20%2B%20SSH-brightgreen)](https://github.com/madeinplutofabio/pic-standard/blob/main/RELEASING.md)
 [![CI](https://github.com/madeinplutofabio/pic-standard/actions/workflows/ci.yml/badge.svg)](https://github.com/madeinplutofabio/pic-standard/actions/workflows/ci.yml)
 [![Code style: Ruff](https://img.shields.io/badge/code%20style-ruff-D7FF64)](https://docs.astral.sh/ruff/)
 [![Coverage](https://img.shields.io/badge/coverage-%E2%89%A580%25-brightgreen)](https://github.com/madeinplutofabio/pic-standard/blob/main/pyproject.toml)

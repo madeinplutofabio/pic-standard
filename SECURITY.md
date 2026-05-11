@@ -65,3 +65,14 @@ Reporters are credited in the published advisory unless they explicitly request 
 ## Cryptographic signing of communications
 
 PGP-signed reports and acknowledgments are not currently supported — no maintainer signing key has been published. This is a known gap; a maintainer key will be published in this document when one exists. In the interim, the private channel of GitHub Security Advisories is the only supported reporting path.
+
+## Verifying releases
+
+PIC Standard releases produced via the project's release pipeline are cryptographically signed in two complementary ways:
+
+- **PyPI distribution artifacts** (wheel + sdist): signed via [PEP 740 attestations](https://peps.python.org/pep-0740/) (Sigstore-backed, tied to a GitHub Actions Trusted Publisher workflow identity — `madeinplutofabio/pic-standard` running `release.yml` under the `pypi` environment).
+- **Git tags**: signed with the project's dedicated Ed25519 release-signing key (the public half is pinned in [`.github/release-signing-key.pub`](.github/release-signing-key.pub)).
+
+For verification commands, the trusted public signing key + SHA256 fingerprint, troubleshooting, and key rotation procedure, see **[`RELEASING.md`](RELEASING.md)**.
+
+Releases predating the signing infrastructure are unsigned legacy artifacts. The cutover version is documented in `RELEASING.md`.

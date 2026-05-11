@@ -1,0 +1,166 @@
+# Release workflow for pic-standard.
+#
+# Triggered by tag pushes matching `v*`. Maintainer flow:
+#   git tag -s v<version> -m "..."
+#   git push origin v<version>
+#
+# This workflow:
+#   1. Verifies the tag's SSH signature against the trusted release-signing
+#      key committed at .github/release-signing-key.pub. Aborts if unsigned
+#      or signed by an unknown key.
+#   2. Builds wheel + sdist via `python -m build`.
+#   3. Publishes to PyPI via `pypa/gh-action-pypi-publish` using Trusted
+#      Publisher (no API token) and auto-generates PEP 740 attestations.
+#   4. Creates the GitHub Release with the annotated tag's subject + body
+#      as release notes (signature block excluded), attaching the built
+#      wheel + sdist as assets.
+#
+# The `pypi` environment (configured under repo Settings → Environments)
+# provides an approval gate — a maintainer must explicitly approve each
+# publish run in the Actions UI before any artifact reaches PyPI.
+
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*"
+
+# Workflow-wide default: minimal read access. Each job elevates explicitly.
+permissions:
+  contents: read
+
+jobs:
+  # ──────────────────────────────────────────────────────────────────
+  # Verify the tag is signed by the trusted release-signing key, then
+  # build the distribution artifacts. Runs immediately on tag push.
+  # NO approval gate — this is the precondition that decides whether
+  # the approval gate even fires in the publish job.
+  # ──────────────────────────────────────────────────────────────────
+  verify-and-build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          # Full history + tags so `git tag -v` can read the annotated
+          # tag's signature payload.
+          fetch-depth: 0
+
+      - name: Verify tag signature against trusted public key
+        env:
+          TAG: ${{ github.ref_name }}
+        run: |
+          # Construct the allowed_signers policy from the committed public
+          # key. This is the trust anchor — only signatures from the exact
+          # key in .github/release-signing-key.pub are accepted.
+          mkdir -p ~/.ssh
+          KEY_CONTENT=$(cat .github/release-signing-key.pub)
+          echo "fabio@madeinpluto.com $KEY_CONTENT" > ~/.ssh/release-allowed-signers
+
+          # Tell git to verify SSH-format signatures using that policy.
+          git config gpg.format ssh
+          git config gpg.ssh.allowedSignersFile ~/.ssh/release-allowed-signers
+
+          # Verify. Exits non-zero on:
+          #  - unsigned tag
+          #  - signed by a key not in allowed_signers
+          #  - corrupt signature
+          # Workflow aborts here if any check fails — no artifact builds.
+          git tag -v "$TAG"
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install build tooling
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install build
+
+      - name: Build wheel + sdist
+        run: python -m build
+
+      - name: Upload build artifacts for publish job
+        uses: actions/upload-artifact@v4
+        with:
+          name: dist
+          path: dist/
+          retention-days: 7
+          if-no-files-found: error
+
+  # ──────────────────────────────────────────────────────────────────
+  # Publish to PyPI (Trusted Publisher + PEP 740 attestations) and
+  # create the GitHub Release. Gated by the `pypi` environment, which
+  # requires maintainer approval before this job runs.
+  # ──────────────────────────────────────────────────────────────────
+  publish:
+    needs: verify-and-build
+    runs-on: ubuntu-latest
+
+    environment:
+      name: pypi
+      url: https://pypi.org/project/pic-standard/
+
+    permissions:
+      # OIDC token for Trusted Publisher authentication + PEP 740 attestation
+      # generation. The PyPA action exchanges this token with PyPI for an
+      # ephemeral upload credential.
+      id-token: write
+      # Required for softprops/action-gh-release@v2 to create the Release
+      # and attach assets.
+      contents: write
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          # Needed for the annotated-tag-body extraction step below.
+          fetch-depth: 0
+
+      - name: Download build artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: dist
+          path: dist/
+
+      - name: Publish to PyPI (Trusted Publisher + attestations)
+        # Pinned to the PyPA-recommended @release/v1 floating major;
+        # auto-generates and uploads PEP 740 attestations by default
+        # (no extra config needed). Trust is established by PyPI's
+        # Trusted Publisher policy: project `pic-standard`, workflow
+        # `release.yml`, environment `pypi`.
+        uses: pypa/gh-action-pypi-publish@release/v1
+
+      - name: Extract annotated tag message for release notes
+        id: tag-body
+        env:
+          TAG: ${{ github.ref_name }}
+        run: |
+          # Read subject + body of the annotated tag, EXCLUDING the
+          # signature block. `%(contents)` would include the
+          # "-----BEGIN SSH SIGNATURE-----" trailer — visually wrong
+          # for release notes. Use `%(contents:body)` (body only) and
+          # `%(subject)` (first line), then emit them in standard
+          # subject + blank-line + body shape.
+          git tag --list --format=$'%(subject)%(if)%(contents:body)%(then)\n\n%(contents:body)%(end)' "$TAG" > release-body.md
+          echo "body-path=release-body.md" >> "$GITHUB_OUTPUT"
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          # Use the annotated tag's subject + body (no signature block).
+          body_path: ${{ steps.tag-body.outputs.body-path }}
+          # Attach the built wheel + sdist as release assets — handy for
+          # reproducibility (anyone can grab the exact wheel without
+          # going through PyPI's interface).
+          files: dist/*
+          # Prerelease detection from semver convention: if the tag has a
+          # pre-release suffix (e.g., `v1.0.0-rc1`, `v1.0.0-beta.2`), the
+          # tag name contains `-` and we mark it as prerelease.
+          # `make_latest` is intentionally omitted — softprops uses its
+          # default behavior, which marks stable tags as latest and skips
+          # "latest" for prereleases.
+          prerelease: ${{ contains(github.ref_name, '-') }}

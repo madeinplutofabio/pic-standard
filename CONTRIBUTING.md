@@ -60,5 +60,17 @@ corresponding tests.
 ## ⚖️ Governance Model
 The PIC Standard is consensus-driven. Major changes to the core `spec/` or `schemas/` must be initiated in the **GitHub Discussions** tab before a Pull Request is opened.
 
+## 🔑 Release Process
+
+**All release tags MUST be signed** with the project's dedicated SSH release-signing key. This is not just policy — the release workflow (`.github/workflows/release.yml`) verifies the tag's signature against the trusted public key in `.github/release-signing-key.pub` before any artifact is built. Unsigned or wrongly-signed tags are rejected; no PyPI upload or GitHub Release happens for them.
+
+Full setup and release flow:
+
+- Signing key generation, git config, GitHub Signing Key registration: see `RELEASING.md` (Prerequisites section).
+- Release flow (`git tag -s` → push → approval gate → automated publish): see `RELEASING.md` (For maintainers section).
+- Trusted public key + SHA256 fingerprint: see `RELEASING.md` (Trusted public signing key section).
+
+New maintainers should complete the one-time setup before cutting their first release.
+
 ## 📜 Code of Conduct
 Please be professional and inclusive. We follow the Contributor Covenant.
