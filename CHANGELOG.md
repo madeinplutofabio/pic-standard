@@ -5,6 +5,18 @@ All notable changes to this project will be documented in this file.
 This project follows Semantic Versioning:
 https://semver.org/
 
+## [0.8.1.1] - 2026-05-11
+
+Shakedown release through the new signing infrastructure. **No protocol changes vs v0.8.1.**
+
+This release exists to exercise the release-signing pipeline (PR #77) end-to-end and produce the first PyPI artifact bearing PEP 740 attestations + the first git tag signed with the project's dedicated Ed25519 release-signing key.
+
+### Notes
+- **No code or protocol changes vs v0.8.1.** Hygiene/infrastructure-only since v0.8.1: code-style enforcement (Ruff + ESLint/Prettier) and 80% Python statement-coverage gate (PR #73); release-signing pipeline (PR #77).
+- **First signed release.** Pre-`v0.8.1.1` releases are unsigned legacy artifacts. See [`RELEASING.md`](RELEASING.md) for verification commands and the trusted public signing key fingerprint.
+
+---
+
 ## [0.8.1] - 2026-05-07
 
 ### Added
