@@ -120,6 +120,25 @@ graph TD
 
 ---
 
+## How PIC Differs from Receipt / Audit / Reputation Systems
+
+PIC is a **pre-execution action-verification contract** - a parallel surface in the agent-safety stack, not a primitive in a shared substrate. PIC decides at the action boundary whether a high-impact tool call is justified to execute *now*. Post-execution systems - bilateral receipts, signed audit logs, trust/reputation scores - record what already happened and are architecturally distinct.
+
+| Concern | PIC (pre-execution) | Receipt / audit / reputation systems (post-execution) |
+|---|---|---|
+| When it acts | Before the action executes — fail-closed gate | After the action executes - signed record |
+| Decision output | `allow` / `block` / `require-more-evidence` | Signed receipt, log entry, reputation delta |
+| Stops the wire transfer? | Yes | No — records that it happened |
+| Trust model | Local keyring, operator-owned roots, injectable resolver | Often relies on shared trust networks or cross-org federation |
+| Threat focus | Prompt injection, hallucination, blind tool calls | Auditability, accountability, ex-post compliance |
+| Dependency surface | Zero outbound — runs fully local | Often depends on shared canonicalization substrates, reputation aggregators, or external verifier networks |
+
+PIC's pre-execution surface can contribute to Article 12-style traceability on the decision side: a verified Action Proposal is a structured decision artifact that may be incorporated into a high-risk AI system's record-keeping and logging architecture. PIC alone is not Article 12 compliance; it complements the broader system-level logging and retention duties in Articles 12 and 19. A post-execution attestation surface bound to the same primitives is drafted in [`docs/attestation-object-draft.md`](docs/attestation-object-draft.md), kept local-first and operator-controlled by design.
+
+**Rule of thumb:** if a system asks "should this action be allowed to run?", that's PIC's surface. If it asks "did this action run, and what's the agent's reputation?", that's a complementary post-execution surface — not a layer PIC sits inside.
+
+---
+
 ## Evidence Verification
 
 PIC supports deterministic evidence verification that upgrades provenance trust in-memory.
