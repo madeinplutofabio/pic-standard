@@ -30,7 +30,7 @@ If your domain (e.g., Healthcare, Legal) requires specific risk controls:
     npm run format:check
     ```
 
-- **Statement coverage ≥80% (Python).** CI runs `coverage report --fail-under=80`. If a change drops coverage below the threshold, add tests or refactor. Config: `pyproject.toml` (`[tool.coverage.run]` / `[tool.coverage.report]`).
+- **Statement coverage ≥80% (Python codebase only).** CI runs `python -m coverage report --fail-under=80` for the Python SDK (`sdk-python/pic_standard/`). TypeScript integration coverage is deferred to a v0.9.x follow-up. Config: `pyproject.toml` (`[tool.coverage.run]` / `[tool.coverage.report]`).
 - Pull requests must include a clear description of the change and reference any related issue or discussion.
 - For SDK changes, all Pydantic models must validate successfully.
 

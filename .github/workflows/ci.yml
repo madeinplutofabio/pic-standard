@@ -70,8 +70,8 @@ jobs:
         env:
           PYTHONPATH: ${{ github.workspace }}/sdk-python
         run: |
-          coverage run -m pytest -q
-          coverage report --fail-under=80
+          python -m coverage run -m pytest -q
+          python -m coverage report --fail-under=80
 
   test-openclaw:
     runs-on: ubuntu-latest
