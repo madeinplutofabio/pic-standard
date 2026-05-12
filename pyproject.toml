@@ -132,3 +132,20 @@ exclude_lines = [
   "raise NotImplementedError",
   "\\.\\.\\.",
 ]
+
+# ------------------------------------------------------------------
+# pytest configuration
+# ------------------------------------------------------------------
+
+[tool.pytest.ini_options]
+# Silence the v0.8 trust-deprecation warning during test runs. The warning is
+# documented behavior emitted by `verify_proposal()` when a proposal carries
+# `trust="trusted"` and effective evidence verification will not run (see
+# docs/migration-trust-sanitization.md). The non-strict-trust pathway is
+# intentionally exercised by the test suite to verify v0.7.x-compatible
+# behavior is preserved, so these emissions are by design — filtering keeps
+# test output focused on actual signal. Remove this filter when the test
+# corpus migrates to evidence-backed proposals (v0.8.2 / v0.9.x).
+filterwarnings = [
+  "ignore::pic_standard.pipeline.PICTrustFutureWarning",
+]
