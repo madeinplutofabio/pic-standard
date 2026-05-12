@@ -11,7 +11,7 @@
 [![Coverage](https://img.shields.io/badge/coverage-%E2%89%A580%25-brightgreen)](https://github.com/madeinplutofabio/pic-standard/blob/main/pyproject.toml)
 [![Last commit](https://img.shields.io/github/last-commit/madeinplutofabio/pic-standard)](https://github.com/madeinplutofabio/pic-standard/commits/main)
 [![GitHub stars](https://img.shields.io/github/stars/madeinplutofabio/pic-standard?style=social)](https://github.com/madeinplutofabio/pic-standard)
-[![DOI](https://zenodo.org/badge/1130565808.svg?v=1)](https://doi.org/10.5281/zenodo.18725562)
+[![DOI](http://img.shields.io/badge/DOI-10.5281%20%2F%20zenodo.18725562-blue.svg)](https://doi.org/10.5281/zenodo.18725562) 
 [![License](https://img.shields.io/github/license/madeinplutofabio/pic-standard)](https://github.com/madeinplutofabio/pic-standard/blob/main/LICENSE)
 
 PIC is a lightweight, local-first protocol that forces AI agents to **prove** every important action before it happens. Agents must declare intent, impact, provenance, and evidence; PIC verifies everything and **fails closed** if anything is wrong.
