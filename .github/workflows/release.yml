@@ -42,7 +42,7 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
         with:
           # Full history + tags so `git tag -v` can read the annotated
           # tag's signature payload.
@@ -87,7 +87,7 @@ jobs:
           git tag -v "$TAG"
 
       - name: Setup Python
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@v6
         with:
           python-version: "3.12"
 
@@ -100,7 +100,7 @@ jobs:
         run: python -m build
 
       - name: Upload build artifacts for publish job
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: dist
           path: dist/
@@ -125,13 +125,13 @@ jobs:
       # generation. The PyPA action exchanges this token with PyPI for an
       # ephemeral upload credential.
       id-token: write
-      # Required for softprops/action-gh-release@v2 to create the Release
+      # Required for softprops/action-gh-release to create the Release
       # and attach assets.
       contents: write
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
         with:
           # Needed for the annotated-tag-body extraction step below.
           fetch-depth: 0
@@ -147,7 +147,7 @@ jobs:
           git cat-file -t "${TAG}"   # prints "tag" (not "commit")
 
       - name: Download build artifacts
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v7
         with:
           name: dist
           path: dist/
@@ -175,7 +175,7 @@ jobs:
           echo "body-path=release-body.md" >> "$GITHUB_OUTPUT"
 
       - name: Create GitHub Release
-        uses: softprops/action-gh-release@v2
+        uses: softprops/action-gh-release@v3
         with:
           # Use the annotated tag's subject + body (no signature block).
           body_path: ${{ steps.tag-body.outputs.body-path }}
