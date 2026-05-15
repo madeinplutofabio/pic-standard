@@ -296,3 +296,4 @@ Issues & ideas: [GitHub Issues](https://github.com/madeinplutofabio/pic-standard
 Maintained by [![Linkedin](https://i.sstatic.net/gVE0j.png) @fmsalvadori](https://www.linkedin.com/in/fmsalvadori/)
 &nbsp;
 [![GitHub](https://i.sstatic.net/tskMh.png) MadeInPluto](https://github.com/madeinplutofabio)
+
