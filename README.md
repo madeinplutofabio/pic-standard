@@ -11,7 +11,7 @@
 [![Coverage](https://img.shields.io/badge/coverage-%E2%89%A580%25-brightgreen)](https://github.com/madeinplutofabio/pic-standard/blob/main/pyproject.toml)
 [![Last commit](https://img.shields.io/github/last-commit/madeinplutofabio/pic-standard)](https://github.com/madeinplutofabio/pic-standard/commits/main)
 [![GitHub stars](https://img.shields.io/github/stars/madeinplutofabio/pic-standard?style=social)](https://github.com/madeinplutofabio/pic-standard)
-[![DOI](http://img.shields.io/badge/DOI-10.5281%20%2F%20zenodo.18725562-blue.svg)](https://doi.org/10.5281/zenodo.18725562) 
+[![DOI](http://img.shields.io/badge/DOI-10.5281%20%2F%20zenodo.18725562-blue.svg)](https://doi.org/10.5281/zenodo.18725562)
 [![License](https://img.shields.io/github/license/madeinplutofabio/pic-standard)](https://github.com/madeinplutofabio/pic-standard/blob/main/LICENSE)
 
 PIC is a lightweight, local-first protocol that forces AI agents to **prove** every important action before it happens. Agents must declare intent, impact, provenance, and evidence; PIC verifies everything and **fails closed** if anything is wrong.
@@ -273,6 +273,7 @@ Verify locally: `sha256sum -c docs/RFC-0001.SHA256`
 - **Security policy** — see [`SECURITY.md`](SECURITY.md). Report vulnerabilities privately via [GitHub Security Advisories](https://github.com/madeinplutofabio/pic-standard/security/advisories/new); do not file public issues for security reports.
 - **Code of conduct** — see [`CODE_OF_CONDUCT.md`](CODE_OF_CONDUCT.md). PIC follows the [Contributor Covenant 2.1](https://www.contributor-covenant.org/version/2/1/code_of_conduct/). Reports go to `team@madeinpluto.com`.
 - **Citation** — see [`CITATION.cff`](CITATION.cff) for full citation metadata. The Zenodo concept DOI [10.5281/zenodo.18725562](https://doi.org/10.5281/zenodo.18725562) (badged at the top of this page) resolves to the latest archived release on Zenodo; per-version DOIs are listed on the Zenodo record.
+- **Foundation-track feedback** — PIC Standard has undergone [AAIF project-proposal review](https://github.com/aaif/project-proposals/issues/16#issuecomment-4455960990). The technical positioning was recognized; the current focus is expanding multi-organization maintainership, production adoption, and standards-track readiness.
 - **License** — Apache-2.0; see [`LICENSE`](LICENSE) (also badged at the top of this page).
 
 ---
