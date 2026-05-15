@@ -2,6 +2,60 @@
 
 Thank you for helping us build a more accountable future for AI. 🛡️
 
+## ✍️ Developer Certificate of Origin (DCO)
+
+PIC Standard uses the [Developer Certificate of Origin](https://developercertificate.org/) (DCO) for individual contributions. All commits to this repository **must be signed off** under the DCO. The DCO is a lightweight, per-commit attestation that you have the right to submit the contribution under the project's Apache 2.0 license.
+
+**Scope note:** The DCO covers contributor attestation on individual commits. If the project is accepted into a hosting foundation or formal open-governance program, additional project-level onboarding or contribution agreements may apply as required by that program. The DCO does not replace such agreements; it complements them.
+
+### How to sign off
+
+Add the `-s` flag to your commits:
+
+```bash
+git commit -s -m "Your commit message"
+```
+
+This appends a `Signed-off-by:` line to the commit message:
+
+```
+Signed-off-by: Your Name <your.email@example.com>
+```
+
+Use the **real name and email** associated with your GitHub account. Anonymous or pseudonymous sign-offs are not accepted.
+
+### What the DCO certifies
+
+By signing off, you certify that:
+
+- You created the contribution yourself and have the right to submit it under Apache 2.0, **or**
+- The contribution is based on previous work covered under an appropriate open-source license that allows submission under Apache 2.0 (with that license preserved in the contribution), **or**
+- The contribution was provided to you by someone who certified one of the above, and you are passing it through unmodified
+
+See [developercertificate.org](https://developercertificate.org/) for the full text.
+
+### CI enforcement
+
+The DCO sign-off is checked by the **DCO GitHub App** on every pull request. PRs without `Signed-off-by:` on every commit cannot be merged. The check appears under the PR's status checks.
+
+### Fixing commits that lack sign-off
+
+If you already pushed commits without sign-off, you can amend the last commit:
+
+```bash
+git commit --amend --signoff
+git push --force-with-lease
+```
+
+Or re-sign multiple commits at once:
+
+```bash
+git rebase HEAD~N --signoff   # N = number of commits to re-sign
+git push --force-with-lease
+```
+
+The DCO App will re-check the PR automatically after the push.
+
 ## 🛠️ How to Contribute
 
 ### 1. Proposing a New Impact Class
