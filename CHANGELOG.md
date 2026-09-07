@@ -5,7 +5,7 @@ All notable changes to this project will be documented in this file.
 This project follows Semantic Versioning:
 https://semver.org/
 
-## [0.8.3] - UNRELEASED
+## [0.8.3] - 2026-09-07
 
 Evidence-semantics tightening: hash evidence is content-integrity only. Reported by @keureyes in [#133](https://github.com/pic-standard/pic-standard/issues/133).
 
