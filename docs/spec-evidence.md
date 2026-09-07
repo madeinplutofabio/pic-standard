@@ -144,11 +144,17 @@ For each evidence entry with `type="hash"`:
    [`canonicalization.md §7.11`](canonicalization.md#711-file-hash-rules-pic-protocol-constraint-adjacent-to-canonicalization).
 3. Implementations MUST compute SHA-256 of the file bytes and compare,
    byte-exact, against the `sha256` field's value.
-4. On match, the evidence entry is verified; the entry's `id` is
-   eligible for trust upgrade (see §8).
+4. On match, the evidence entry MUST be marked `hash_verified`
+   (content-integrity established over the referenced file bytes).
+   A `hash_verified` result MUST NOT upgrade `provenance[].trust`
+   from `"untrusted"` to `"trusted"` by itself (see §8). A future
+   authority primitive (see Appendix C OQ-EVIDENCE-005) may admit
+   specific hash-verified entries into trust upgrade; the primitive
+   is not defined in this release.
 5. On any failure (file not found, hash mismatch, sandbox violation,
-   size cap breach), the evidence entry MUST NOT be marked verified.
-   The verifier outcome MUST include `PIC_EVIDENCE_FAILED` (see §11).
+   size cap breach), the evidence entry MUST NOT be marked
+   `hash_verified`. The verifier outcome MUST include
+   `PIC_EVIDENCE_FAILED` (see §11).
 
 ### 5.1 Path resolution and sandboxing
 
@@ -349,10 +355,22 @@ semantics (mode allowlist, tool match, freshness, digest binding).
 
 Per [RFC-0001 §ID Binding Convention](RFC-0001-pic-standard.md#id-binding-convention),
 evidence verification produces trust as an *output*, not an input
-assumption. When an evidence entry's verification (hash per §5 or
-signature per §6) succeeds, implementations MUST upgrade the trust
-level of any matching `provenance[].id` entry from `"untrusted"` to
-`"trusted"` for the remainder of the verification of that proposal.
+assumption. When a **signature**-evidence entry's verification (per
+§6) succeeds, implementations MUST upgrade the trust level of any
+matching `provenance[].id` entry from `"untrusted"` to `"trusted"`
+for the remainder of the verification of that proposal.
+
+Hash-evidence entries (§5) MUST NOT trigger this upgrade by
+themselves; they establish content-integrity only. Integrity is
+not authority: because a proposal author may supply both the
+referenced bytes and the digest, a matching hash proves only that
+the bytes are internally consistent with the supplied digest, not
+that any independent authority has attested to those bytes. A
+future authority primitive (see Appendix C OQ-EVIDENCE-005) may
+admit specific hash-verified entries into trust upgrade when a
+verifier-controlled precommitment or protected-namespace policy
+supplies the missing authority link, but the primitive is not
+defined in this release.
 
 The trust upgrade MUST be applied BEFORE the core verifier's causal
 gating check (high-impact actions require trusted-evidence chain) so
@@ -789,6 +807,7 @@ silently deleted.
 | OQ-EVIDENCE-002 | Clock-skew tolerance protocol-level vs deployment-level | Open |
 | OQ-EVIDENCE-003 | Digest algorithm agility | Open |
 | OQ-EVIDENCE-004 | Replay-prevention profile (nonce caches, TTL registries) | Open |
+| OQ-EVIDENCE-005 | Authority primitive for hash-only evidence | Open |
 
 ### OQ-EVIDENCE-001 — Canonical signing envelope stability
 
@@ -818,3 +837,34 @@ Full replay prevention is deferred (§15). A profile-level
 specification needs to define nonce shape, cache TTL bounds, and
 distributed-verifier coordination. Resolution requires authoring a
 separate `docs/spec-evidence-replay-profile.md`.
+
+### OQ-EVIDENCE-005 — Authority primitive for hash-only evidence
+
+§5 establishes that a matching SHA-256 hash proves content-integrity
+of the referenced bytes. §8 (as tightened in v0.8.3) further
+establishes that content-integrity alone MUST NOT upgrade provenance
+trust, because a proposal author may supply both the referenced
+bytes and the digest. Integrity is not authority.
+
+A future release is anticipated to define an **authority primitive**
+that would let specific hash-verified entries participate in trust
+upgrade when the digest is anchored to an independent authority.
+Two candidate shapes:
+
+- A **verifier-owned signed manifest** binding each admissible
+  digest to an authority statement (for example, loaded by the
+  verifier alongside `pic_policy.json`).
+- A **protected namespace policy** distinguishing agent-writable
+  evidence roots from operator-controlled write-once/read-only
+  roots, admitting hash upgrades only for the latter.
+
+Resolution requires: (a) picking the primitive shape (or supporting
+both); (b) defining freshness and scope semantics; (c) authoring
+conformance vectors for the positive control (authority present →
+upgrade admitted), the namespace-mutation control (bytes moved
+between roots → integrity constant, authority verdict flips), the
+self-authorship negative control (both artifact and digest generated
+by the proposal author → integrity succeeds, trust upgrade fails),
+and the circular-corroboration negative control (repeated
+self-authored citations do not compound into authority). Discussion
+continues on issue #133.

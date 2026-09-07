@@ -5,6 +5,23 @@ All notable changes to this project will be documented in this file.
 This project follows Semantic Versioning:
 https://semver.org/
 
+## [0.8.3] - UNRELEASED
+
+Evidence-semantics tightening: hash evidence is content-integrity only. Reported by @keureyes in [#133](https://github.com/pic-standard/pic-standard/issues/133).
+
+### Changed
+
+- **Hash-evidence trust-upgrade semantics tightened.** A matching SHA-256 hash now produces a `hash_verified` result (content-integrity of the referenced file bytes) and MUST NOT upgrade `provenance[].trust` from `"untrusted"` to `"trusted"` by itself. The prior draft evidence semantics allowed a proposal author to supply both the referenced bytes and the digest, using the resulting hash match to reach trusted provenance for high-impact actions. This was integrity, not authority; it is corrected in v0.8.3. Signature evidence (Ed25519, anchored in the configured keyring) continues to upgrade trust unchanged.
+
+### Notes
+
+- **Proposal format unchanged.** The PIC/1.0 proposal and evidence schemas are unchanged from v0.8.2. The behavior change is verifier-side only.
+- **Behavior change under `strict_trust=True`:** high-impact proposals that previously reached `trusted` via hash-only evidence now BLOCK with `PIC_VERIFIER_FAILED`. See the "hash-evidence trust-upgrade" FAQ in [`docs/migration-trust-sanitization.md`](docs/migration-trust-sanitization.md) for migration guidance.
+- **Operator-visible interaction with `allow_sig_evidence`:** under `strict_trust=True`, hash-only high-impact proposals now block regardless of `allow_sig_evidence`. Deployments that previously disabled signature evidence and relied on hash-only trust upgrade must add signature evidence or accept the new BLOCK verdict.
+- **Authority primitive deferred.** A future release may define an authority primitive (verifier-owned signed manifest or protected-namespace policy) that admits specific hash-verified entries into trust upgrade. Tracked as `OQ-EVIDENCE-005` in [`docs/spec-evidence.md`](docs/spec-evidence.md) Appendix C.
+
+---
+
 ## [0.8.2] - 2026-05-31
 
 Conformance + spec-drafts + opt-in canonical signing.

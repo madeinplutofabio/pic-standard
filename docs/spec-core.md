@@ -435,9 +435,11 @@ multiple independent rules fail in a single proposal fall under
 Per [`RFC-0001 §Core Claims #6`](RFC-0001-pic-standard.md#core-claims)
 and [`migration-trust-sanitization.md`](migration-trust-sanitization.md):
 
-> Trust is verifier-derived, not producer-asserted. The only
-> conformant path from `untrusted` to `trusted` is successful
-> evidence verification.
+> Trust is verifier-derived, not producer-asserted. In v0.8.3,
+> the only conformant path from `untrusted` to `trusted` is
+> successful **signature**-evidence verification. Hash evidence
+> establishes content-integrity but does not, by itself, upgrade
+> trust; see [`spec-evidence.md §8`](spec-evidence.md#8-trust-upgrade-rules).
 
 This axiom is enforced behaviorally via the `strict_trust` option:
 
