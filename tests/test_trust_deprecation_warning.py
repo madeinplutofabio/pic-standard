@@ -381,6 +381,7 @@ VERDICT_REGRESSION_MATRIX: list[tuple[str, bool, bool, bool, PICErrorCode | None
     VERDICT_REGRESSION_MATRIX,
 )
 def test_verdict_regression_matrix(
+    monkeypatch: pytest.MonkeyPatch,
     filename: str,
     strict_trust: bool,
     verify_evidence: bool,
@@ -392,6 +393,12 @@ def test_verdict_regression_matrix(
     Asserts only the stable verdict-bearing fields. See module-level matrix
     comment for the design rationale.
     """
+    # Since v0.8.3, financial_hash_ok.json carries signature evidence that must
+    # verify against the demo keyring for its ALLOW rows to hold. Point the
+    # verifier at examples/../pic_keys.example.json so the demo keys are found
+    # without depending on the caller's environment.
+    monkeypatch.setenv("PIC_KEYS_PATH", str(EXAMPLES_DIR.parent / "pic_keys.example.json"))
+
     proposal = json.loads((EXAMPLES_DIR / filename).read_text(encoding="utf-8"))
 
     # Suppress deprecation warnings — they fire for some examples (semi_trusted
