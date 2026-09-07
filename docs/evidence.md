@@ -1,9 +1,9 @@
 # Evidence Verification Guide
 
-PIC supports deterministic evidence verification that can upgrade provenance trust **in-memory** (fail‑closed).
+PIC supports deterministic evidence verification. In v0.8.3, signature evidence can upgrade provenance trust **in-memory** (fail‑closed); hash evidence establishes content-integrity of the referenced file bytes but does not, by itself, upgrade trust.
 
 - Evidence verification runs **before** the verifier (when enabled in your integration/CLI).
-- Any verified evidence ID upgrades `provenance[].trust → trusted` for matching provenance IDs.
+- Verified **signature**-evidence IDs upgrade `provenance[].trust → trusted` for matching provenance IDs. Verified **hash**-evidence IDs establish content-integrity but do not, by themselves, upgrade trust (see [`spec-evidence.md §8`](spec-evidence.md#8-trust-upgrade-rules)).
 - Evidence lists may contain **mixed evidence types** (hash + signature) in the same proposal.
 
 ---
@@ -16,7 +16,7 @@ What this gives you:
 
 - `evidence[].id` is no longer just a label — it can be **resolved** to a file (`file://...`) and **verified**.
 - Verification is **fail‑closed**: if evidence can't be resolved or verified, high‑impact actions are blocked.
-- "Trusted" becomes an **output** of verification (in‑memory): verified evidence IDs upgrade `provenance[].trust` → `trusted` before the verifier runs.
+- "Trusted" becomes an **output** of verification (in‑memory). For hash evidence specifically, verification produces `hash_verified` (content-integrity of the referenced file bytes) and does not upgrade `provenance[].trust`. In v0.8.3, only signature-evidence verification upgrades trust before the verifier runs; see [`spec-evidence.md §8`](spec-evidence.md#8-trust-upgrade-rules).
 
 ### Verify hash evidence
 

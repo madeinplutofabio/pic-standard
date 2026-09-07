@@ -1,13 +1,13 @@
 {
-  "id": "trust-financial_hash_ok-strict-t-verify-f",
-  "description": "Trust-sanitization matrix cell: financial_hash_ok, strict_trust=true, verify_evidence=false. Provenance is already untrusted; with evidence verification disabled, no trust upgrade occurs and the money-impact proposal is rejected by the verifier.",
-  "source": "Lifted from tests/test_trust_deprecation_warning.py::VERDICT_REGRESSION_MATRIX (financial_hash_ok.json, strict=T, verify=F).",
+  "id": "trust-financial_hash_only-strict-f-verify-t",
+  "description": "Trust-sanitization matrix cell: financial_hash_only, strict_trust=false, verify_evidence=true. Hash evidence establishes content-integrity (hash_verified) but MUST NOT upgrade untrusted provenance to trusted under v0.8.3 semantics; the causal-contract check sees untrusted provenance and blocks with PIC_VERIFIER_FAILED. This cell was allow pre-v0.8.3 (hash drove trust upgrade); it now blocks.",
+  "source": "Renamed from conformance/trust_sanitization/financial_hash_ok__strict-f__verify-t.json in v0.8.3 to disambiguate the hash-only anti-example from the signed ALLOW example. Updated per issue #133.",
   "mode": "trust_sanitization",
   "expected": "block",
   "expected_error_code": "PIC_VERIFIER_FAILED",
   "options": {
-    "strict_trust": true,
-    "verify_evidence": false,
+    "strict_trust": false,
+    "verify_evidence": true,
     "evidence_root_dir": "conformance/artifacts"
   },
   "proposal": {

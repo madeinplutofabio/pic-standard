@@ -68,8 +68,13 @@ pip install pic-standard
 # Verify an example proposal
 pic-cli verify examples/financial_irreversible.json
 
-# Evidence-aware verification (hash)
-pic-cli verify examples/financial_hash_ok.json --verify-evidence
+# Evidence-aware verification (hash + signature; hash proves integrity,
+# signature provides authority for trust upgrade under v0.8.3)
+# macOS / Linux
+PIC_KEYS_PATH=pic_keys.example.json pic-cli verify examples/financial_hash_ok.json --verify-evidence
+# PowerShell
+# $env:PIC_KEYS_PATH="pic_keys.example.json"
+# pic-cli verify examples/financial_hash_ok.json --verify-evidence
 
 # Evidence-aware verification (signature — requires example keyring)
 # macOS / Linux
@@ -78,6 +83,8 @@ PIC_KEYS_PATH=pic_keys.example.json pic-cli verify examples/financial_sig_ok.jso
 # $env:PIC_KEYS_PATH="pic_keys.example.json"
 # pic-cli verify examples/financial_sig_ok.json --verify-evidence
 ```
+
+> **Why the keyring on the hash example?** Under v0.8.3 evidence semantics, a matching hash proves content-integrity of the referenced file bytes but does not, by itself, upgrade provenance trust. The signature evidence, verified against `PIC_KEYS_PATH`, supplies the authority-bearing trust upgrade for the money-impact action. See [`docs/spec-evidence.md`](docs/spec-evidence.md) §8 and [issue #133](https://github.com/pic-standard/pic-standard/issues/133).
 
 **Optional extras:**
 ```bash

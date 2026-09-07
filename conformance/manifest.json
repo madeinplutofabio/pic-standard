@@ -82,10 +82,11 @@
       "expected_error_code": "PIC_TOOL_BINDING_MISMATCH"
     },
     {
-      "id": "evidence-hash-allow-001-simple",
-      "file": "evidence/allow/001_hash_simple.json",
+      "id": "evidence-hash-block-027-no-trust-upgrade-falsifier",
+      "file": "evidence/block/027_hash_no_trust_upgrade_falsifier.json",
       "mode": "evidence",
-      "expected": "allow"
+      "expected": "block",
+      "expected_error_code": "PIC_VERIFIER_FAILED"
     },
     {
       "id": "evidence-hash-block-001-mismatch",
@@ -164,10 +165,11 @@
       "expected_error_code": "PIC_EVIDENCE_FAILED"
     },
     {
-      "id": "evidence-hash-allow-002-multiple-hashes",
-      "file": "evidence/allow/003_hash_multiple.json",
+      "id": "evidence-hash-block-028-hash-multiple-no-trust-upgrade",
+      "file": "evidence/block/028_hash_multiple_no_trust_upgrade.json",
       "mode": "evidence",
-      "expected": "allow"
+      "expected": "block",
+      "expected_error_code": "PIC_VERIFIER_FAILED"
     },
     {
       "id": "evidence-mixed-allow-001-hash-and-sig",
@@ -374,34 +376,36 @@
       "matrix_id": "read_only_query"
     },
     {
-      "id": "trust-financial_hash_ok-strict-f-verify-f",
-      "file": "trust_sanitization/financial_hash_ok__strict-f__verify-f.json",
+      "id": "trust-financial_hash_only-strict-f-verify-f",
+      "file": "trust_sanitization/financial_hash_only__strict-f__verify-f.json",
       "mode": "trust_sanitization",
       "expected": "block",
       "expected_error_code": "PIC_VERIFIER_FAILED",
-      "matrix_id": "financial_hash_ok"
+      "matrix_id": "financial_hash_only"
     },
     {
-      "id": "trust-financial_hash_ok-strict-f-verify-t",
-      "file": "trust_sanitization/financial_hash_ok__strict-f__verify-t.json",
-      "mode": "trust_sanitization",
-      "expected": "allow",
-      "matrix_id": "financial_hash_ok"
-    },
-    {
-      "id": "trust-financial_hash_ok-strict-t-verify-f",
-      "file": "trust_sanitization/financial_hash_ok__strict-t__verify-f.json",
+      "id": "trust-financial_hash_only-strict-f-verify-t",
+      "file": "trust_sanitization/financial_hash_only__strict-f__verify-t.json",
       "mode": "trust_sanitization",
       "expected": "block",
       "expected_error_code": "PIC_VERIFIER_FAILED",
-      "matrix_id": "financial_hash_ok"
+      "matrix_id": "financial_hash_only"
     },
     {
-      "id": "trust-financial_hash_ok-strict-t-verify-t",
-      "file": "trust_sanitization/financial_hash_ok__strict-t__verify-t.json",
+      "id": "trust-financial_hash_only-strict-t-verify-f",
+      "file": "trust_sanitization/financial_hash_only__strict-t__verify-f.json",
       "mode": "trust_sanitization",
-      "expected": "allow",
-      "matrix_id": "financial_hash_ok"
+      "expected": "block",
+      "expected_error_code": "PIC_VERIFIER_FAILED",
+      "matrix_id": "financial_hash_only"
+    },
+    {
+      "id": "trust-financial_hash_only-strict-t-verify-t",
+      "file": "trust_sanitization/financial_hash_only__strict-t__verify-t.json",
+      "mode": "trust_sanitization",
+      "expected": "block",
+      "expected_error_code": "PIC_VERIFIER_FAILED",
+      "matrix_id": "financial_hash_only"
     },
     {
       "id": "trust-financial_irreversible-strict-f-verify-f",

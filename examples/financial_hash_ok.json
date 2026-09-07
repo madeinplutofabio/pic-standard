@@ -1,6 +1,6 @@
 {
     "protocol": "PIC/1.0",
-    "intent": "Send payment for approved invoice",
+    "intent": "Send payment for approved invoice (signature-authorized; hash proves content-integrity)",
     "impact": "money",
     "provenance": [
         {
@@ -11,7 +11,7 @@
     ],
     "claims": [
         {
-            "text": "Invoice 123 is approved for $500",
+            "text": "Invoice 123 is approved for $500 (hash-integrity verified, signed by demo_hash_signer_v1)",
             "evidence": [
                 "invoice_123"
             ]
@@ -30,6 +30,17 @@
             "ref": "file://artifacts/invoice_123.txt",
             "sha256": "4d021a98393dd33246437f8439ece6156b86abda5fd7a0d43dc915eda166c3c9",
             "attestor": "local-demo"
+        },
+        {
+            "id": "invoice_123",
+            "type": "sig",
+            "ref": "inline:invoice_signer_payload",
+            "payload": "invoice_123 approved by demo_hash_signer_v1 for $500",
+            "alg": "ed25519",
+            "signature": "UVsCrzXuFJuJxJC08U7F0KYebiS2Xbu6Qe4dFScnchyl6rMmcTCKFxpNsgaDGl62P+om5MZ/m4Mc1rLxspxKCQ==",
+            "key_id": "demo_hash_signer_v1",
+            "signer": "demo_hash_signer_v1",
+            "attestor": "demo"
         }
     ]
 }

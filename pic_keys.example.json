@@ -7,6 +7,10 @@
     "demo_signer_revoked_v0": {
       "public_key": "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=",
       "expires_at": "2025-01-01T00:00:00Z"
+    },
+    "demo_hash_signer_v1": {
+      "public_key": "oDfIPbWepz1G9tqGkG71TP8zB5POrAO3AZDZdx+xXr4=",
+      "expires_at": "2027-01-01T00:00:00Z"
     }
   },
   "revoked_keys": [

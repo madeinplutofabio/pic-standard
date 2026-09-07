@@ -343,13 +343,15 @@ VERDICT_REGRESSION_MATRIX: list[tuple[str, bool, bool, bool, PICErrorCode | None
     ("read_only_query.json", False, True, True, None),
     ("read_only_query.json", True, False, True, None),
     ("read_only_query.json", True, True, True, None),
-    # CANARY for "did instantiation move ahead of evidence verification?".
-    # financial_hash_ok.json has high-impact (money) + untrusted provenance +
-    # hash evidence. With verify_evidence=True the hash must verify and upgrade
-    # trust to trusted BEFORE the contract check sees the model. If any future
-    # refactor moves full ActionProposal instantiation ahead of evidence
-    # verification, these two ok=True rows flip to ok=False — the test fails
-    # immediately and points at the regression.
+    # CANARY for evidence verification happening before contract validation.
+    # financial_hash_ok.json is a high-impact (money) proposal whose provenance
+    # starts untrusted. In the final v0.8.3 fixture, hash evidence proves
+    # content-integrity only, while signature evidence populates trust_upgrade_ids
+    # via the configured keyring. With verify_evidence=True, signature evidence
+    # must verify and upgrade trust before the causal-contract check sees the
+    # model. If a future refactor moves full ActionProposal instantiation ahead
+    # of evidence verification, the two ok=True rows below flip to ok=False and
+    # this test points at the regression.
     ("financial_hash_ok.json", False, False, False, PICErrorCode.VERIFIER_FAILED),
     ("financial_hash_ok.json", False, True, True, None),  # canary
     ("financial_hash_ok.json", True, False, False, PICErrorCode.VERIFIER_FAILED),
@@ -379,6 +381,7 @@ VERDICT_REGRESSION_MATRIX: list[tuple[str, bool, bool, bool, PICErrorCode | None
     VERDICT_REGRESSION_MATRIX,
 )
 def test_verdict_regression_matrix(
+    monkeypatch: pytest.MonkeyPatch,
     filename: str,
     strict_trust: bool,
     verify_evidence: bool,
@@ -390,6 +393,12 @@ def test_verdict_regression_matrix(
     Asserts only the stable verdict-bearing fields. See module-level matrix
     comment for the design rationale.
     """
+    # Since v0.8.3, financial_hash_ok.json carries signature evidence that must
+    # verify against the demo keyring for its ALLOW rows to hold. Point the
+    # verifier at examples/../pic_keys.example.json so the demo keys are found
+    # without depending on the caller's environment.
+    monkeypatch.setenv("PIC_KEYS_PATH", str(EXAMPLES_DIR.parent / "pic_keys.example.json"))
+
     proposal = json.loads((EXAMPLES_DIR / filename).read_text(encoding="utf-8"))
 
     # Suppress deprecation warnings — they fire for some examples (semi_trusted

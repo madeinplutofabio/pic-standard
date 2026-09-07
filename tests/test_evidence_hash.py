@@ -1,9 +1,13 @@
 import hashlib
 import json
+import warnings
 from pathlib import Path
 
-from pic_standard.evidence import EvidenceSystem, apply_verified_ids_to_provenance
-from pic_standard.verifier import ActionProposal
+from pic_standard.evidence import (
+    EvidenceSystem,
+    apply_trust_upgrade_ids_to_provenance,
+    apply_verified_ids_to_provenance,
+)
 
 ROOT = Path(__file__).resolve().parents[1]
 
@@ -24,17 +28,67 @@ def verify_multiple_evidences(proposal: dict, base_dir: Path) -> dict:
     }
 
 
-def test_evidence_hash_ok_verifies_and_upgrades_provenance():
-    proposal_path = ROOT / "examples" / "financial_hash_ok.json"
-    proposal = json.loads(proposal_path.read_text(encoding="utf-8"))
+def test_evidence_hash_ok_verifies_content_integrity_only(tmp_path):
+    """Hash verification is content-integrity only, not trust-upgrading (v0.8.3).
 
-    report = EvidenceSystem().verify_all(proposal, base_dir=proposal_path.parent)
+    Under v0.8.3 evidence semantics, a matching SHA-256 hash proves
+    content-integrity of the referenced file bytes but MUST NOT populate
+    ``trust_upgrade_ids``. Applying ``apply_trust_upgrade_ids_to_provenance``
+    with the report's ``trust_upgrade_ids`` therefore leaves any hash-only
+    provenance entry untrusted. See ``docs/spec-evidence.md`` §8.
+
+    Uses an inline hash-only fixture under ``tmp_path`` rather than
+    ``examples/financial_hash_ok.json``, because that example becomes a
+    signed ALLOW example later in the same PR and a signature-driven trust
+    upgrade would mask the hash-only invariant this test protects.
+    """
+    # Inline artifact + real digest
+    artifact = tmp_path / "invoice.txt"
+    artifact.write_bytes(b"invoice body bytes")
+    digest = hashlib.sha256(artifact.read_bytes()).hexdigest()
+
+    # Proposal: provenance id == evidence id, hash-only, initially untrusted
+    proposal = {
+        "protocol": "PIC/1.0",
+        "intent": "test hash content-integrity",
+        "impact": "money",
+        "provenance": [
+            {"id": "inline_hash_id", "trust": "untrusted"},
+        ],
+        "claims": [
+            {"text": "hash evidence attached", "evidence": ["inline_hash_id"]},
+        ],
+        "action": {"tool": "test_tool", "args": {}},
+        "evidence": [
+            {
+                "id": "inline_hash_id",
+                "type": "hash",
+                "ref": f"file://{artifact.name}",
+                "sha256": digest,
+            }
+        ],
+    }
+
+    report = EvidenceSystem().verify_all(proposal, base_dir=tmp_path)
     assert report.ok
-    assert "invoice_123" in report.verified_ids
+    # Hash verifies content-integrity: present in hash_verified_ids and the audit union.
+    assert "inline_hash_id" in report.hash_verified_ids
+    assert "inline_hash_id" in report.verified_ids
+    # But NOT signature-verified, NOT authority-bearing.
+    assert "inline_hash_id" not in report.signature_verified_ids
+    assert "inline_hash_id" not in report.trust_upgrade_ids
 
-    upgraded = apply_verified_ids_to_provenance(proposal, report.verified_ids)
-    # Should pass verifier after upgrade (money requires TRUSTED evidence)
-    ActionProposal(**upgraded)
+    # Applying trust upgrade with the (non-authority-bearing) set must leave
+    # the hash-only provenance entry untrusted.
+    upgraded = apply_trust_upgrade_ids_to_provenance(proposal, report.trust_upgrade_ids)
+    invoice_prov = next(
+        (p for p in upgraded.get("provenance", []) if p.get("id") == "inline_hash_id"),
+        None,
+    )
+    assert invoice_prov is not None
+    assert invoice_prov.get("trust") == "untrusted", (
+        "hash-verified provenance MUST stay untrusted in v0.8.3"
+    )
 
 
 def test_evidence_hash_bad_fails():
@@ -184,3 +238,23 @@ def test_evidence_multiple_pieces_verification(tmp_path):
     # Verify each result is successful
     for result in summary["results"]:
         assert result.ok, f"Evidence {result.id} should be verified"
+
+
+def test_apply_verified_ids_to_provenance_emits_deprecation_warning():
+    """Legacy wrapper warns and preserves one-release compatibility behavior."""
+    proposal = {"provenance": [{"id": "x", "trust": "untrusted"}]}
+
+    with warnings.catch_warnings(record=True) as caught:
+        warnings.simplefilter("always")
+        upgraded = apply_verified_ids_to_provenance(proposal, {"x"})
+
+    deprecations = [w for w in caught if issubclass(w.category, DeprecationWarning)]
+    assert len(deprecations) == 1
+
+    msg = str(deprecations[0].message)
+    assert "apply_verified_ids_to_provenance" in msg
+    assert "apply_trust_upgrade_ids_to_provenance" in msg
+
+    # Compatibility behavior: the deprecated wrapper still applies the passed
+    # set mechanically for one release. Internal code must not use it.
+    assert upgraded["provenance"][0]["trust"] == "trusted"
