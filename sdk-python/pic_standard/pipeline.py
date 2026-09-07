@@ -30,11 +30,11 @@ from pic_standard.verifier import ActionProposal, Provenance
 try:
     from pic_standard.evidence import (
         EvidenceSystem,
-        apply_verified_ids_to_provenance,
+        apply_trust_upgrade_ids_to_provenance,
     )
 except ImportError:  # pragma: no cover
     EvidenceSystem = None  # type: ignore[assignment,misc]
-    apply_verified_ids_to_provenance = None  # type: ignore[assignment]
+    apply_trust_upgrade_ids_to_provenance = None  # type: ignore[assignment]
 
 log = logging.getLogger("pic_standard.pipeline")
 
@@ -366,7 +366,7 @@ def _should_warn_on_self_asserted_trust(
 
 def _make_evidence_system(opts: PipelineOptions) -> Any:
     """Construct EvidenceSystem or raise PICError if unavailable."""
-    if EvidenceSystem is None or apply_verified_ids_to_provenance is None:
+    if EvidenceSystem is None or apply_trust_upgrade_ids_to_provenance is None:
         raise PICError(
             code=PICErrorCode.EVIDENCE_FAILED,
             message="Evidence verification requested but evidence module is unavailable",
@@ -439,9 +439,9 @@ def _run_evidence_verification(
         )
 
     # Trust upgrade — returns new dict, does not mutate caller input
-    upgraded = apply_verified_ids_to_provenance(  # type: ignore[misc]
+    upgraded = apply_trust_upgrade_ids_to_provenance(  # type: ignore[misc]
         proposal,
-        evidence_report.verified_ids,
+        evidence_report.trust_upgrade_ids,
     )
     return evidence_report, upgraded, None
 

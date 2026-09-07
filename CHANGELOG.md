@@ -20,6 +20,13 @@ Evidence-semantics tightening: hash evidence is content-integrity only. Reported
 - **Operator-visible interaction with `allow_sig_evidence`:** under `strict_trust=True`, hash-only high-impact proposals now block regardless of `allow_sig_evidence`. Deployments that previously disabled signature evidence and relied on hash-only trust upgrade must add signature evidence or accept the new BLOCK verdict.
 - **Authority primitive deferred.** A future release may define an authority primitive (verifier-owned signed manifest or protected-namespace policy) that admits specific hash-verified entries into trust upgrade. Tracked as `OQ-EVIDENCE-005` in [`docs/spec-evidence.md`](docs/spec-evidence.md) Appendix C.
 
+### Conformance vector changes
+
+- Moved `conformance/evidence/allow/001_hash_simple.json` -> `conformance/evidence/block/027_hash_no_trust_upgrade_falsifier.json` (id `evidence-hash-allow-001-simple` -> `evidence-hash-block-027-no-trust-upgrade-falsifier`), reframed as the #133 falsifier. Expected verdict flipped `allow` -> `block` with `PIC_VERIFIER_FAILED`.
+- Moved `conformance/evidence/allow/003_hash_multiple.json` -> `conformance/evidence/block/028_hash_multiple_no_trust_upgrade.json` (id `evidence-hash-allow-002-multiple-hashes` -> `evidence-hash-block-028-hash-multiple-no-trust-upgrade`). Same verdict flip.
+- Renamed 4 trust-sanitization vectors `conformance/trust_sanitization/financial_hash_ok__strict-*__verify-*.json` -> `financial_hash_only__strict-*__verify-*.json` (id `trust-financial_hash_ok-*` -> `trust-financial_hash_only-*`; `matrix_id` `financial_hash_ok` -> `financial_hash_only`). The two `__verify-t` variants additionally flip `allow` -> `block` with `PIC_VERIFIER_FAILED`; the two `__verify-f` variants keep their existing block verdict.
+- `conformance/evidence/allow/004_mixed_hash_and_sig.json` unchanged: signature evidence continues to upgrade trust and this vector remains a live regression guard for the signature path.
+
 ---
 
 ## [0.8.2] - 2026-05-31

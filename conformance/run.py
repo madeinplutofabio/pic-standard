@@ -132,14 +132,17 @@ EXPECTED_BY_MODE: Dict[str, set] = {
 MANIFEST_TOP_FIELDS = {"version", "vectors"}
 
 # Recognized trust-sanitization matrix bases. These correspond 1:1 to the
-# proposal bases in tests/test_trust_deprecation_warning.py::
-# VERDICT_REGRESSION_MATRIX. Manifest entries with mode="trust_sanitization"
-# MUST declare a matrix_id from this set; arbitrary strings are rejected at
-# manifest validation time.
+# The 6 recognized trust-sanitization matrix bases. Manifest entries with
+# mode="trust_sanitization" MUST declare a matrix_id from this set;
+# arbitrary strings are rejected at manifest validation time. Since v0.8.3,
+# the conformance suite uses `financial_hash_only` for the hash-only
+# anti-example, while tests/test_trust_deprecation_warning.py::
+# VERDICT_REGRESSION_MATRIX consumes `examples/financial_hash_ok.json` (the
+# signed ALLOW example). The sets diverge intentionally by one base name.
 TRUST_SANITIZATION_MATRIX_IDS = {
     "compute_risk",
     "read_only_query",
-    "financial_hash_ok",
+    "financial_hash_only",
     "financial_irreversible",
     "privacy_risk",
     "robotic_action",
@@ -1456,7 +1459,7 @@ def _run_trust_sanitization_vector(vec: Dict[str, Any], entry: Dict[str, Any]) -
         one cell but containing the options of another).
       - Reuses the evidence-mode helpers for `evidence_root_dir`
         resolution and `proposal_base_dir` derivation. This matters for
-        the `financial_hash_ok` matrix cells which contain file-backed
+        the `financial_hash_only` matrix cells which contain file-backed
         hash evidence; other matrix cells (low-impact,
         self-asserted-trusted high-impact) have no evidence and the
         resolution is a no-op.
@@ -1630,7 +1633,7 @@ def _run_trust_sanitization_vector(vec: Dict[str, Any], entry: Dict[str, Any]) -
             reason_code=DC_VECTOR_INVALID,
         )
 
-    # Hermeticity guard for the financial_hash_ok matrix cells: if the
+    # Hermeticity guard for the financial_hash_only matrix cells: if the
     # proposal carries file-backed hash evidence, evidence_root_dir must
     # be a non-empty string. Other matrix cells have no evidence and this
     # guard is a no-op.

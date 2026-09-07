@@ -736,11 +736,11 @@ one exercises.
 
 | Vector ID | Section(s) exercised |
 |---|---|
-| `evidence-hash-allow-001-simple` | §5 |
-| `evidence-hash-allow-002-multiple-hashes` | §5 |
 | `evidence-hash-block-001-mismatch` | §5, §11 |
 | `evidence-hash-block-002-file-not-found` | §5.1, §11 |
 | `evidence-hash-block-003-invalid-sha256-format` | §4 (schema), §11 |
+| `evidence-hash-block-027-no-trust-upgrade-falsifier` | §5, §8, §11 |
+| `evidence-hash-block-028-hash-multiple-no-trust-upgrade` | §5, §8, §11 |
 | `evidence-sandbox-block-001-path-traversal` | §5.1, §16.2, §16.5 |
 | `evidence-sandbox-block-002-absolute-outside-root` | §5.1, §16.2, §16.5 |
 | `evidence-sig-allow-001-simple` | §6, §9, §10 |
@@ -749,7 +749,7 @@ one exercises.
 | `evidence-sig-block-003-revoked-key` | §10, §16.4, §11 |
 | `evidence-sig-block-004-expired-key` | §10, §16.4, §11 |
 | `evidence-sig-block-005-payload-too-large` | §6, §11 |
-| `evidence-mixed-allow-001-hash-and-sig` | §5, §6, §8 |
+| `evidence-mixed-allow-001-hash-and-sig` | §5, §6, §8 [^v083] |
 | `evidence-sig-allow-002-canonical-happy-full` | §6.2.2, §6.3, §6.4, §15 |
 | `evidence-sig-allow-003-canonical-happy-minimal` | §6.2.2, §6.3, §6.4 |
 | `evidence-sig-allow-004-legacy-json-object-no-version` | §6.2.1 |
@@ -771,6 +771,8 @@ one exercises.
 | `evidence-sig-block-019-canonical-expires-at-whitespace-padded` | §6.4 (strict RFC 3339), §11 |
 | `evidence-sig-block-020-canonical-invalid-digest-shape` | §6.4 (digest-field shape), §11 |
 | `evidence-sig-block-021-canonical-expires-at-naive` | §6.4 (strict RFC 3339, timezone required), §11 |
+
+[^v083]: Under v0.8.3 semantics, the §8 trust upgrade in this vector is driven by §6 signature evidence, not §5 hash evidence, which contributes content-integrity only. See §8 and Appendix C OQ-EVIDENCE-005.
 
 ---
 

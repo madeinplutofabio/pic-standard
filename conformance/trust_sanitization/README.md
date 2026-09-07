@@ -27,12 +27,12 @@ The 24-cell matrix exercises every combination of these two settings across
 |---|---|---|---|---|---|
 | `compute_risk` | allow | allow | allow | allow | low-impact always allowed |
 | `read_only_query` | allow | allow | allow | allow | low-impact always allowed |
-| `financial_hash_ok` | block (VERIFIER_FAILED) | allow | block (VERIFIER_FAILED) | allow | money + untrusted prov + hash evidence; `verify_evidence` flips verdict |
+| `financial_hash_only` | block (VERIFIER_FAILED) | block (VERIFIER_FAILED) | block (VERIFIER_FAILED) | block (VERIFIER_FAILED) | money + untrusted prov + hash-only evidence; hash MUST NOT upgrade trust in v0.8.3 |
 | `financial_irreversible` | allow | allow | block (VERIFIER_FAILED) | block (VERIFIER_FAILED) | money + self-asserted trusted; `strict_trust` flips verdict |
 | `privacy_risk` | allow | allow | block (VERIFIER_FAILED) | block (VERIFIER_FAILED) | privacy + self-asserted trusted; same shape as financial_irreversible |
 | `robotic_action` | allow | allow | block (VERIFIER_FAILED) | block (VERIFIER_FAILED) | irreversible + self-asserted trusted; same shape as financial_irreversible |
 
-All 8 block cells use error code `PIC_VERIFIER_FAILED` (the verifier's
+All 10 block cells use error code `PIC_VERIFIER_FAILED` (the verifier's
 causal-contract check rejects the proposal after model instantiation).
 
 The intended 24 trust-sanitization matrix cells do not use
@@ -68,17 +68,47 @@ Each vector file is a JSON object with the following structure:
 
 ```json
 {
-  "id": "trust-financial_hash_ok-strict-f-verify-t",
-  "description": "Trust-sanitization matrix cell: financial_hash_ok, strict_trust=false, verify_evidence=true.",
-  "source": "Lifted from tests/test_trust_deprecation_warning.py::VERDICT_REGRESSION_MATRIX (financial_hash_ok.json, strict=F, verify=T).",
+  "id": "trust-financial_hash_only-strict-f-verify-t",
+  "description": "Trust-sanitization matrix cell: financial_hash_only, strict_trust=false, verify_evidence=true. Hash evidence establishes content-integrity but MUST NOT upgrade trust in v0.8.3; the causal-contract check sees untrusted provenance and blocks with PIC_VERIFIER_FAILED.",
+  "source": "Renamed from conformance/trust_sanitization/financial_hash_ok__strict-f__verify-t.json in v0.8.3 per issue #133.",
   "mode": "trust_sanitization",
-  "expected": "allow",
+  "expected": "block",
+  "expected_error_code": "PIC_VERIFIER_FAILED",
   "options": {
     "strict_trust": false,
     "verify_evidence": true,
     "evidence_root_dir": "conformance/artifacts"
   },
-  "proposal": { /* full inline PIC/1.0 proposal */ }
+  "proposal": {
+    "protocol": "PIC/1.0",
+    "intent": "Send payment for approved invoice",
+    "impact": "money",
+    "provenance": [
+      {
+        "id": "invoice_001",
+        "trust": "untrusted",
+        "source": "file://invoice_001.txt"
+      }
+    ],
+    "claims": [
+      {
+        "text": "Invoice #001 is approved for $500",
+        "evidence": ["invoice_001"]
+      }
+    ],
+    "action": {
+      "tool": "payments_send",
+      "args": { "amount": 500 }
+    },
+    "evidence": [
+      {
+        "id": "invoice_001",
+        "type": "hash",
+        "ref": "file://invoice_001.txt",
+        "sha256": "a2e818612ae44f799be83833149cdd8a1ea750fa8d40bc8507f874f8ad488fbd"
+      }
+    ]
+  }
 }
 ```
 
@@ -91,7 +121,7 @@ at the top level (sibling of `expected`).
 |---|---|---|
 | `id` | yes | Stable identifier. The `trust-`, `strict-*`, and `verify-*` parts are kebab-style; the embedded `matrix_id` preserves the source proposal-base identifier, including underscores. Convention: `trust-<matrix_id>-strict-<t\|f>-verify-<t\|f>`. The runner enforces consistency with `options` coordinates — see **Coordinate consistency** below. |
 | `description` | yes | One-paragraph summary of the matrix cell. |
-| `source` | yes | Cross-reference to `tests/test_trust_deprecation_warning.py::VERDICT_REGRESSION_MATRIX`. |
+| `source` | yes | Cross-reference to the vector's origin (in-tree test matrix, prior conformance path, or upstream issue). |
 | `mode` | yes | MUST be `"trust_sanitization"`. |
 | `expected` | yes | `"allow"` or `"block"`. |
 | `expected_error_code` | only when `expected == "block"` | MUST be exactly `"PIC_VERIFIER_FAILED"`. Enforced at manifest validation time. |
@@ -126,7 +156,7 @@ which would mislead reviewers into thinking keyring hermeticity is being
 enforced. The runner rejects it fail-closed.
 
 For proposals that contain file-backed hash evidence (the four
-`financial_hash_ok` cells), `options.evidence_root_dir` MUST be set to
+`financial_hash_only` cells), `options.evidence_root_dir` MUST be set to
 `"conformance/artifacts"` (or an equivalent repo-root-relative path
 inside that subtree). The runner derives `proposal_base_dir` from the
 resolved `evidence_root_dir` so `file://<name>` refs resolve under the
@@ -158,11 +188,12 @@ Each vector has a manifest entry with a required `matrix_id` for grouping:
 
 ```json
 {
-  "id": "trust-financial_hash_ok-strict-f-verify-t",
-  "file": "trust_sanitization/financial_hash_ok__strict-f__verify-t.json",
+  "id": "trust-financial_hash_only-strict-f-verify-t",
+  "file": "trust_sanitization/financial_hash_only__strict-f__verify-t.json",
   "mode": "trust_sanitization",
-  "expected": "allow",
-  "matrix_id": "financial_hash_ok"
+  "expected": "block",
+  "expected_error_code": "PIC_VERIFIER_FAILED",
+  "matrix_id": "financial_hash_only"
 }
 ```
 
@@ -172,7 +203,7 @@ entry level (same as `core` and `evidence` block entries).
 Constraints (runner-enforced):
 
 - `matrix_id` MUST be one of the 6 recognized trust-sanitization matrix
-  bases: `compute_risk`, `read_only_query`, `financial_hash_ok`,
+  bases: `compute_risk`, `read_only_query`, `financial_hash_only`,
   `financial_irreversible`, `privacy_risk`, `robotic_action`. Arbitrary
   strings are rejected fail-closed at manifest validation time.
 - For `expected: "block"`, `expected_error_code` MUST be exactly

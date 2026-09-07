@@ -1,9 +1,10 @@
 {
-  "id": "evidence-hash-allow-002-multiple-hashes",
-  "description": "Two hash-evidence entries reference distinct artifacts; both verify and upgrade their respective provenance entries to trusted, allowing a money-impact proposal.",
-  "source": "Adapted from tests/test_evidence_hash.py::test_evidence_multiple_pieces_verification.",
+  "id": "evidence-hash-block-028-hash-multiple-no-trust-upgrade",
+  "description": "Two hash-evidence entries reference distinct artifacts; both establish content-integrity (hash_verified) but MUST NOT upgrade their respective untrusted provenance entries to trusted under v0.8.3 semantics. The money-impact proposal blocks with PIC_VERIFIER_FAILED. See docs/spec-evidence.md §8 and Appendix C OQ-EVIDENCE-005.",
+  "source": "Adapted from conformance/evidence/allow/003_hash_multiple.json, the pre-v0.8.3 evidence-hash-allow-002-multiple-hashes vector, retargeted from allow/ to block/ per issue #133.",
   "mode": "evidence",
-  "expected": "allow",
+  "expected": "block",
+  "expected_error_code": "PIC_VERIFIER_FAILED",
   "options": {
     "verify_evidence": true,
     "evidence_root_dir": "conformance/artifacts",

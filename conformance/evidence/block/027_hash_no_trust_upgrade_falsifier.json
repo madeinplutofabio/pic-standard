@@ -1,9 +1,10 @@
 {
-  "id": "evidence-hash-allow-001-simple",
-  "description": "Valid hash evidence over invoice_001.txt upgrades matching untrusted provenance to trusted, allowing a money-impact proposal.",
-  "source": "Adapted from examples/financial_hash_ok.json and tests/test_evidence_hash.py::test_evidence_hash_ok_verifies_and_upgrades_provenance.",
+  "id": "evidence-hash-block-027-no-trust-upgrade-falsifier",
+  "description": "Hash-evidence falsifier for issue #133. A high-impact money proposal starts with untrusted provenance and supplies both the referenced bytes and a matching SHA-256 digest from the evidence root. The hash match establishes content-integrity (hash_verified) but MUST NOT upgrade provenance to trusted under v0.8.3 semantics. The proposal blocks with PIC_VERIFIER_FAILED because integrity is not authority.",
+  "source": "Adapted from conformance/evidence/allow/001_hash_simple.json, the pre-v0.8.3 evidence-hash-allow-001-simple vector, retargeted from allow/ to block/ per issue #133 as the hash-only trust-upgrade falsifier.",
   "mode": "evidence",
-  "expected": "allow",
+  "expected": "block",
+  "expected_error_code": "PIC_VERIFIER_FAILED",
   "options": {
     "verify_evidence": true,
     "evidence_root_dir": "conformance/artifacts",

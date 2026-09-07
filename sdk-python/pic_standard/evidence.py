@@ -5,7 +5,8 @@ import hashlib
 import hmac
 import json
 import re
-from dataclasses import dataclass
+import warnings
+from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Dict, List, Literal, Optional, Set, Tuple, Union
@@ -68,6 +69,9 @@ class EvidenceReport:
     ok: bool
     results: List[EvidenceResult]
     verified_ids: Set[str]
+    hash_verified_ids: Set[str] = field(default_factory=set)
+    signature_verified_ids: Set[str] = field(default_factory=set)
+    trust_upgrade_ids: Set[str] = field(default_factory=set)
 
 
 # ----------------------------
@@ -602,6 +606,9 @@ class EvidenceSystem:
 
         results: List[EvidenceResult] = []
         verified: Set[str] = set()
+        hash_verified: Set[str] = set()
+        signature_verified: Set[str] = set()
+        trust_upgrade: Set[str] = set()
 
         for raw in evidence_list:
             ev_id = raw.get("id", "<missing id>")
@@ -642,6 +649,7 @@ class EvidenceSystem:
                         continue
 
                     verified.add(ev.id)
+                    hash_verified.add(ev.id)
                     results.append(EvidenceResult(id=ev.id, ok=True, message="sha256 verified"))
                     continue
 
@@ -699,6 +707,8 @@ class EvidenceSystem:
                     )
 
                 verified.add(ev.id)
+                signature_verified.add(ev.id)
+                trust_upgrade.add(ev.id)
                 results.append(
                     EvidenceResult(
                         id=ev.id,
@@ -711,27 +721,66 @@ class EvidenceSystem:
                 results.append(EvidenceResult(id=str(ev_id), ok=False, message=str(e)))
 
         ok = all(r.ok for r in results) and len(results) > 0
-        return EvidenceReport(ok=ok, results=results, verified_ids=verified)
+        return EvidenceReport(
+            ok=ok,
+            results=results,
+            verified_ids=verified,
+            hash_verified_ids=hash_verified,
+            signature_verified_ids=signature_verified,
+            trust_upgrade_ids=trust_upgrade,
+        )
 
 
-def apply_verified_ids_to_provenance(
-    proposal: Dict[str, Any], verified_ids: Set[str]
+def apply_trust_upgrade_ids_to_provenance(
+    proposal: Dict[str, Any], trust_upgrade_ids: Set[str]
 ) -> Dict[str, Any]:
-    """Upgrade provenance trust levels in-memory based on verified evidence IDs.
+    """Upgrade provenance trust levels in-memory based on authority-bearing IDs.
 
-    v0.3/v0.4 behavior:
-      - If a provenance entry's id is verified, upgrade trust to 'trusted'.
-      - Ensure 'source' exists (defensive).
+    In v0.8.3, ``trust_upgrade_ids`` is populated only from signature-evidence
+    verification (see ``EvidenceReport.trust_upgrade_ids``). Hash-verified IDs
+    are NOT included: hash evidence proves content-integrity of the referenced
+    bytes but not authority over what those bytes should be. See
+    ``docs/spec-evidence.md`` §8 and Appendix C ``OQ-EVIDENCE-005``.
+
+    Behavior:
+      - If a provenance entry's id is in ``trust_upgrade_ids``, upgrade trust
+        to 'trusted' and ensure 'source' exists (defensive).
     """
     out = dict(proposal)
     prov_in = proposal.get("provenance") or []
     prov: List[Dict[str, Any]] = [dict(p) for p in prov_in if isinstance(p, dict)]
 
     for p in prov:
-        if p.get("id") in verified_ids:
+        if p.get("id") in trust_upgrade_ids:
             p["trust"] = "trusted"
             if not p.get("source"):
                 p["source"] = "evidence"
 
     out["provenance"] = prov
     return out
+
+
+def apply_verified_ids_to_provenance(
+    proposal: Dict[str, Any], verified_ids: Set[str]
+) -> Dict[str, Any]:
+    """Deprecated. Use ``apply_trust_upgrade_ids_to_provenance`` instead.
+
+    This wrapper preserves the pre-v0.8.3 mechanical behavior for one release
+    to avoid an immediate import break for any third-party consumer. It
+    forwards to ``apply_trust_upgrade_ids_to_provenance`` with the passed
+    set, so any hash-verified IDs in the set will still trigger the
+    (semantically unsafe) trust upgrade. Calls
+    ``warnings.warn(..., DeprecationWarning)`` when invoked.
+
+    Internal PIC code MUST NOT use this wrapper. A grep gate enforces it.
+
+    Removal target: v0.9.0.
+    """
+    warnings.warn(
+        "apply_verified_ids_to_provenance is deprecated because verified_ids "
+        "may include non-authority evidence such as hash matches. Use "
+        "apply_trust_upgrade_ids_to_provenance instead.",
+        DeprecationWarning,
+        stacklevel=2,
+    )
+    return apply_trust_upgrade_ids_to_provenance(proposal, verified_ids)
